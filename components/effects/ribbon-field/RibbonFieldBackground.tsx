@@ -20,7 +20,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RIBBON_FIELD_FRAGMENT_SHADER, RIBBON_FIELD_VERTEX_SHADER } from "./ribbonFieldShaders";
 
 // Local adaptation of the ThreeUI source: color grading (saturation/brightness)
@@ -34,20 +34,35 @@ function compile(gl: WebGLRenderingContext, type: number, source: string) { cons
 
 export function RibbonFieldBackground({ className = "", ...props }: RibbonFieldBackgroundProps) {
   const hostRef = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLCanvasElement>(null); const optionsRef = useRef({ ...RIBBON_FIELD_DEFAULTS, ...props }); optionsRef.current = { ...RIBBON_FIELD_DEFAULTS, ...props };
+  // Bumped on webglcontextrestored: mobile browsers reclaim GL contexts in the
+  // background, and re-running the effect rebuilds shaders/program/buffer.
+  const [glEpoch, setGlEpoch] = useState(0);
   useEffect(() => {
-    const host = hostRef.current, canvas = canvasRef.current; if (!host || !canvas) return undefined; const gl = canvas.getContext("webgl", { alpha: true, antialias: false, premultipliedAlpha: false }); if (!gl) return undefined;
+    const host = hostRef.current, canvas = canvasRef.current; if (!host || !canvas) return undefined;
+    // alpha: false — the shader always writes vec4(color, 1.0), so the alpha
+    // blending path is dead weight; low-power keeps dual-GPU laptops from
+    // waking the discrete GPU for an ambient backdrop.
+    const gl = canvas.getContext("webgl", { alpha: false, antialias: false, powerPreference: "low-power" }); if (!gl) return undefined;
     const vertex = compile(gl, gl.VERTEX_SHADER, RIBBON_FIELD_VERTEX_SHADER), fragment = compile(gl, gl.FRAGMENT_SHADER, RIBBON_FIELD_FRAGMENT_SHADER), program = gl.createProgram(); if (!program) return undefined; gl.attachShader(program, vertex); gl.attachShader(program, fragment); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? "Axiom program link failed"); gl.useProgram(program);
     const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW); const position = gl.getAttribLocation(program, "position"); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const resolution = gl.getUniformLocation(program, "resolution"), time = gl.getUniformLocation(program, "time"), pointerUniform = gl.getUniformLocation(program, "pointer"), saturationUniform = gl.getUniformLocation(program, "saturation"), brightnessUniform = gl.getUniformLocation(program, "brightness"); let mouseX = 0.72, mouseY = 0.42, targetX = 0.72, targetY = 0.42, frame = 0, visible = true; const startedAt = performance.now();
     const pointer = (event: PointerEvent) => { const bounds = host.getBoundingClientRect(); targetX = 0.72 + (((event.clientX - bounds.left) / Math.max(bounds.width, 1)) - 0.72) * optionsRef.current.pointerAmount; targetY = 0.42 + ((1 - (event.clientY - bounds.top) / Math.max(bounds.height, 1)) - 0.42) * optionsRef.current.pointerAmount; };
     const resize = () => { const bounds = host.getBoundingClientRect(), ratio = Math.min(window.devicePixelRatio || 1, optionsRef.current.maxPixelRatio); canvas.width = Math.max(1, Math.floor(bounds.width * ratio)); canvas.height = Math.max(1, Math.floor(bounds.height * ratio)); gl.viewport(0, 0, canvas.width, canvas.height); gl.uniform2f(resolution, canvas.width, canvas.height); };
-    const render = (now: number) => { const options = optionsRef.current; mouseX += (targetX - mouseX) * options.smoothing; mouseY += (targetY - mouseY) * options.smoothing; gl.uniform1f(time, (now - startedAt) * 0.001 * options.speed); gl.uniform2f(pointerUniform, mouseX, mouseY); gl.uniform1f(saturationUniform, options.saturation); gl.uniform1f(brightnessUniform, options.brightness); gl.drawArrays(gl.TRIANGLES, 0, 6); frame = visible && !document.hidden ? requestAnimationFrame(render) : 0; };
+    let lastDraw = 0;
+    // ~30fps cap: ambient motion is indistinguishable at half rate, and the
+    // time uniform keeps the field's phase exact across skipped frames —
+    // halves the GPU/battery cost on high-refresh displays too.
+    const render = (now: number) => { const options = optionsRef.current; if (now - lastDraw >= 30) { lastDraw = now; mouseX += (targetX - mouseX) * options.smoothing; mouseY += (targetY - mouseY) * options.smoothing; gl.uniform1f(time, (now - startedAt) * 0.001 * options.speed); gl.uniform2f(pointerUniform, mouseX, mouseY); gl.uniform1f(saturationUniform, options.saturation); gl.uniform1f(brightnessUniform, options.brightness); gl.drawArrays(gl.TRIANGLES, 0, 6); } frame = visible && !document.hidden ? requestAnimationFrame(render) : 0; };
     const resizeObserver = new ResizeObserver(resize), intersection = new IntersectionObserver(([entry]) => { visible = entry?.isIntersecting ?? true; if (visible && !frame) frame = requestAnimationFrame(render); if (!visible && frame) cancelAnimationFrame(frame), frame = 0; }); resizeObserver.observe(host); intersection.observe(host); host.addEventListener("pointermove", pointer, { passive: true }); resize(); frame = requestAnimationFrame(render);
     // When the tab is hidden the pending rAF can resolve with document.hidden
     // true, leaving frame=0 with nothing scheduled. Restart on return.
     const onVisibility = () => { if (!document.hidden && visible && !frame) frame = requestAnimationFrame(render); };
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { if (frame) cancelAnimationFrame(frame); resizeObserver.disconnect(); intersection.disconnect(); host.removeEventListener("pointermove", pointer); document.removeEventListener("visibilitychange", onVisibility); gl.deleteBuffer(buffer); gl.deleteShader(vertex); gl.deleteShader(fragment); gl.deleteProgram(program); };
-  }, []);
+    const onContextLost = (event: Event) => { event.preventDefault(); if (frame) cancelAnimationFrame(frame), frame = 0; };
+    const onContextRestored = () => setGlEpoch((epoch) => epoch + 1);
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    canvas.addEventListener("webglcontextrestored", onContextRestored);
+    return () => { if (frame) cancelAnimationFrame(frame); resizeObserver.disconnect(); intersection.disconnect(); host.removeEventListener("pointermove", pointer); document.removeEventListener("visibilitychange", onVisibility); canvas.removeEventListener("webglcontextlost", onContextLost); canvas.removeEventListener("webglcontextrestored", onContextRestored); gl.deleteBuffer(buffer); gl.deleteShader(vertex); gl.deleteShader(fragment); gl.deleteProgram(program); };
+  }, [glEpoch]);
   const options = optionsRef.current; return <div ref={hostRef} className={`threeui-background ribbon-field${className ? ` ${className}` : ""}`}><canvas ref={canvasRef} style={{ opacity: options.opacity, filter: options.hue !== 0 ? `hue-rotate(${options.hue}deg)` : undefined }} /></div>;
 }

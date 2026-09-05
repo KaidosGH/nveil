@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react';
+import { CheckCircle2, Loader2, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label, PassphraseInput } from '@/components/ui';
@@ -33,6 +33,9 @@ export default function AbuseReportsPage() {
   const ta = t.abuseAdmin;
   const [keyInput, setKeyInput] = useState('');
   const [storedKey, setStoredKey] = useState<string | null>(null);
+  // True while a saved session key is being auto-validated on mount — without
+  // this the unlock form flashes before the queue load resolves.
+  const [booting, setBooting] = useState(true);
   const [showResolved, setShowResolved] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [details, setDetails] = useState<Report | null>(null);
@@ -76,7 +79,11 @@ export default function AbuseReportsPage() {
 
   useEffect(() => {
     const saved = sessionStorage.getItem('nveil-abuse-key');
-    if (saved) void load(saved, showResolved);
+    if (saved) {
+      void load(saved, showResolved).finally(() => setBooting(false));
+    } else {
+      setBooting(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -122,6 +129,23 @@ export default function AbuseReportsPage() {
   }
 
   const openReports = reports.filter((r) => r.stillExists && !r.deletedAt);
+
+  if (booting) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-12">
+        <Card>
+          <CardContent
+            role="status"
+            aria-live="polite"
+            className="flex items-center justify-center gap-2 p-10 text-muted-foreground"
+          >
+            <Loader2 aria-hidden className="size-4 animate-spin" />
+            {t.common.loading}
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   if (storedKey === null) {
     return (

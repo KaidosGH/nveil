@@ -10,9 +10,12 @@ import { getDict } from '@/lib/i18n/index';
 import { localeFromParts } from '@/lib/i18n-server';
 import './globals.css';
 
-// Matches the forced dark theme so mobile browser chrome blends in.
+// Matches the forced dark theme so mobile browser chrome blends in, and
+// colorScheme makes the browser paint the initial canvas dark before any CSS
+// arrives (new-tab / hard-refresh loads otherwise flash white first).
 export const viewport: Viewport = {
   themeColor: '#0b0b0d',
+  colorScheme: 'dark',
 };
 
 // Per-request CSP nonces (see proxy.ts) require dynamic rendering —
@@ -33,8 +36,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const cookieStore = await cookies();
   const locale = localeFromParts(cookieStore.get('nveil-lang')?.value);
 
+  // Pre-CSS canvas color: the browser paints this inline background before
+  // globals.css arrives — keep it in sync with --background (#0b0b0d).
   return (
-    <html lang={locale}>
+    <html lang={locale} style={{ background: '#0b0b0d' }}>
       <head>
         {/* next/font/local does not auto-preload variable fonts; the file is
             the stable public copy, so this link is build-independent. */}
