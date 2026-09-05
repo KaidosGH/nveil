@@ -5,9 +5,10 @@ import { db, deleteExpired } from '@/lib/db';
 import { abuseReports, secrets } from '@/drizzle/schema';
 import { abuseReportSchema } from '@/lib/validation';
 import { ABUSE_REPORTS_ENABLED } from '@/lib/deployment';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
+import { clientIp, RATE_LIMITS, rateLimit } from '@/lib/rate-limit';
 import { verifyKeyChecksum } from '@/lib/key-checksum';
 import { apiMessage } from '@/lib/i18n-server';
+import { readBodyCapped } from '@/lib/request-body';
 
 /** Extracts the secret ID from a pasted link; fragments/search are dropped. */
 function extractSecretId(raw: string): string | null {
@@ -26,7 +27,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Reports are rare — a hard cap keeps the queue from being flooded.
-  const limit = rateLimit(`abuse:${await clientIp(request.headers)}`, 10, 60 * 60 * 1000);
+  const limit = rateLimit(
+    `abuse:${await clientIp(request.headers)}`,
+    RATE_LIMITS.abuseReportsPerHour,
+    60 * 60 * 1000,
+  );
   if (!limit.ok) {
     return NextResponse.json(
       { error: 'rate_limited', message: apiMessage(request, 'rate_limited') },
@@ -34,16 +39,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Same oversized-upload guard as the secrets route: reject before
-  // request.json() pulls the whole body into memory.
-  const contentLength = Number(request.headers.get('content-length') ?? 0);
-  if (contentLength > 300_000) {
+  // Same hard byte cap as the secrets route, for the same reason:
+  // Content-Length is client-supplied and absent on chunked bodies.
+  const raw = await readBodyCapped(request, 300_000);
+  if (raw === null) {
     return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
   }
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }

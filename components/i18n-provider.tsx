@@ -38,7 +38,7 @@ export function LocaleToggle({ locale }: { locale: Locale }) {
 
   function switchLocale(target: string) {
     const next = locales.includes(target as Locale) ? (target as Locale) : 'en';
-    document.cookie = `nveil-lang=${next}; path=/; max-age=31536000; samesite=lax`;
+    document.cookie = `nveil-lang=${next}; path=/; max-age=31536000; samesite=lax; secure`;
     router.refresh();
   }
 
