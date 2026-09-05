@@ -1,30 +1,15 @@
 // Smoke test for the MarkdownRenderer wiring: the plugin ORDER (sanitize
 // before highlight) is the deliberate, security-relevant part — highlight
 // must only ever decorate sanitized code text.
+// The sanitize schema is imported from lib/markdown-schema.ts — the exact
+// object the shipped component uses, so the tested allowlist cannot drift.
 // Run: node tests/markdown-renderer.test.mjs
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import rehypeSanitize from 'rehype-sanitize';
 import rehypeHighlight from 'rehype-highlight';
-
-// Mirrors components/markdown-renderer.tsx — keep in sync.
-const schema = {
-  ...defaultSchema,
-  tagNames: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'p', 'strong', 'em', 'del', 's',
-    'ul', 'ol', 'li', 'blockquote',
-    'code', 'pre', 'a', 'hr', 'br',
-    'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  ],
-  protocols: { href: ['http', 'https', 'mailto'] },
-  attributes: {
-    ...defaultSchema.attributes,
-    a: ['href', 'title'],
-    code: [['className', /^language-./]],
-  },
-};
+import { markdownSchema as schema } from '../lib/markdown-schema.ts';
 
 const md = [
   '# Heading',

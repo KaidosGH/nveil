@@ -27,15 +27,16 @@ await page.waitForSelector('input[readonly]', { timeout: 15_000 });
 const qrButton = page.locator('button', { hasText: /QR/i }).first();
 await qrButton.click();
 await page.waitForSelector('[class*="aspect-square"] svg', { timeout: 15_000 });
-// The PNG button is disabled={!pngHref} — enabled means the canvas render
-// finished and state is committed. No fixed sleep: this waits exactly as
-// long as generation actually takes.
-await page.waitForSelector('button:not([disabled])', { timeout: 15_000, state: 'visible' });
-const pngEnabled = await page
-  .locator('button', { hasText: /png/i })
+// The PNG button is disabled={!pngHref} — wait on THAT button specifically:
+// a generic :not([disabled]) selector would match any enabled button on the
+// page (modal close, footer controls) and race the canvas generation.
+const pngButton = page.locator('button', { hasText: /png/i }).first();
+await pngButton.waitFor({ state: 'visible', timeout: 15_000 });
+await page
+  .locator('button:not([disabled])', { hasText: /png/i })
   .first()
-  .isEnabled();
-assert.ok(pngEnabled, 'PNG download button still disabled — pngHref never set');
+  .waitFor({ timeout: 15_000 });
+assert.ok(await pngButton.isEnabled(), 'PNG download button still disabled — pngHref never set');
 
 const result = await page.evaluate(() => {
   const card = document.querySelector('[class*="aspect-square"]');

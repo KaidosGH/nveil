@@ -15,7 +15,6 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import {
-  decrypt,
   encrypt,
   generateCreatorToken,
   generateKey,

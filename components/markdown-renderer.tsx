@@ -1,29 +1,7 @@
 import ReactMarkdown from 'react-markdown';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import rehypeSanitize from 'rehype-sanitize';
 import rehypeHighlight from 'rehype-highlight';
-
-/**
- * Strict sanitize allowlist: structural markdown only, links restricted to
- * http(s)/mailto. Everything else — scripts, iframes, inline HTML, event
- * handlers, javascript: URLs — is stripped before rendering. Raw HTML is
- * never executed or rendered.
- */
-const schema = {
-  ...defaultSchema,
-  tagNames: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'p', 'strong', 'em', 'del', 's',
-    'ul', 'ol', 'li', 'blockquote',
-    'code', 'pre', 'a', 'hr', 'br',
-    'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  ],
-  protocols: { href: ['http', 'https', 'mailto'] },
-  attributes: {
-    ...defaultSchema.attributes,
-    a: ['href', 'title'],
-    code: [['className', /^language-./]],
-  },
-};
+import { markdownSchema as schema } from '@/lib/markdown-schema';
 
 export function MarkdownRenderer({ content }: { content: string }) {
   return (
