@@ -82,8 +82,8 @@ html {
 /* Motion: short fade/scale on state changes only (secret reveal, create
    result, copy feedback, modal open) — no scroll-triggered or ambient
    animation beyond the background effect. The omitted `to` keyframe animates
-   to the element's natural state. Disabled entirely for reduced-motion
-   users, mirroring the background effect's gate. */
+   to the element's natural state. Reduced motion keeps opacity-only fades
+   (gentler, not zero — it is the movement that gets dropped). */
 @keyframes nveil-fade-up {
   from {
     opacity: 0;
@@ -118,10 +118,18 @@ html {
   animation: nveil-fade 200ms ease-out both;
 }
 
+/* Faster spinner: reads as faster loading at identical load time. */
+.animate-spin {
+  animation-duration: 600ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-up,
-  .animate-pop,
-  .animate-fade {
+  /* Gentle, not zero: opacity-only fades stay; the movement — translateY,
+     scale — is what gets dropped. */
+  .animate-fade-up {
+    animation: nveil-fade 240ms ease-out both;
+  }
+  .animate-pop {
     animation: none;
   }
 }
