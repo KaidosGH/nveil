@@ -32,7 +32,7 @@ Advanced mode can separate the key from the link: the recipient opens `/secret/{
 
 ## Getting started (development)
 
-Requires Node.js 22+ (CI runs 24, the Docker image ships 26) and a PostgreSQL database.
+Requires Node.js 22.18+ (type stripping must be default; CI runs 24, the Docker image ships 26) and a PostgreSQL database.
 
 ```bash
 cp .env.example .env        # set DATABASE_URL to your local Postgres

@@ -1,6 +1,8 @@
 // E2E check against a running server. Usage:
 //   BASE_URL=http://localhost:3100 node tests/e2e.mjs
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import {
   decrypt,
   encrypt,
@@ -244,6 +246,29 @@ async function fetchSecret(id, keyString) {
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
   assert.match(response.headers.get('strict-transport-security') ?? '', /max-age=/);
   console.log('8. security headers: ok');
+}
+
+// 8b. Legal routes: all four kinds serve a page. The placeholder text is
+//     only asserted when the operator's file is absent — locally content/
+//     may exist, in CI it never does (gitignored).
+{
+  const ROUTES = [
+    ['imprint', '/imprint'],
+    ['privacy', '/privacy'],
+    ['cookies_and_tracking', '/cookies-and-tracking'],
+    ['tos', '/tos'],
+  ];
+  for (const [kind, route] of ROUTES) {
+    const res = await fetch(`${BASE}${route}`);
+    assert.equal(res.status, 200, `${route} must serve a page`);
+    const hasOperatorContent = ['html', 'txt'].some((ext) =>
+      existsSync(path.join(process.cwd(), 'content', `${kind}.${ext}`)),
+    );
+    if (!hasOperatorContent) {
+      assert.match(await res.text(), /placeholder|Platzhalter/, `${route} must show the no-content placeholder`);
+    }
+  }
+  console.log('8b. legal routes: ok');
 }
 
 // 9. Abuse reporting (only when the server runs with NVEIL_REPORT_ABUSE=true

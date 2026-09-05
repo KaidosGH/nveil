@@ -60,6 +60,14 @@ jobs:
         # default create limit here. The UI suite needs its own headroom —
         # it runs on a second server (below) with the limit raised, because
         # it creates secrets after e2e has already spent this budget.
+        env:
+          # Abuse-reporting e2e block: enables the feature server-side and
+          # turns on the gated test section. Throwaway CI credentials — the
+          # key guards a test-only queue on a scratch database.
+          NVEIL_REPORT_ABUSE: 'true'
+          NVEIL_REPORT_ABUSE_KEY: ci-test-only-abuse-key-0123456789abcdef
+          TEST_ABUSE: '1'
+          ABUSE_KEY: ci-test-only-abuse-key-0123456789abcdef
         run: |
           npx next start -p 3200 -H 0.0.0.0 &
           # Poll the health endpoint instead of a fixed sleep — starts as soon
