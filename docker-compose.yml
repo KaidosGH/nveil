@@ -1,7 +1,22 @@
+# Log rotation for both services: Docker's default json-file driver grows
+# unboundedly, and while this app's stdout is tiny (privacy: it logs almost
+# nothing), postgres and error paths still accumulate. 3 x 10 MB per service
+# bounds the disk cost without losing recent diagnostics.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   app:
     container_name: nveil-app
     build: .
+    # Caps runaway memory (defense in depth on top of the app's streamed
+    # request-body caps): a memory-exhaustion request storm degrades to 503s
+    # instead of an OOM-killed container.
+    mem_limit: 512m
+    logging: *default-logging
     # Reverse-proxy deployments reach this container over a shared Docker
     # network (see deploy/ for ready-made examples). To expose a host port
     # for a non-Docker proxy instead, replace with:
@@ -39,6 +54,7 @@ services:
 
   db:
     image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    logging: *default-logging
     environment:
       POSTGRES_USER: nveil
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
