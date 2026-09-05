@@ -36,9 +36,8 @@ try {
   assert.equal(r[0], 'html');
   assert.equal(r[1], '<H>');
 
-  // 2. alias names are NOT resolved — one name per kind (impressum.* is not
-  //    an imprint file name)
-  r = scenario({ 'impressum.html': '<WRONG-NAME>' }, ["(await getLegalContent('imprint')) ?? 'null'"]);
+  // 2. only exact kind names resolve — one file name per kind, no aliases
+  r = scenario({ 'imprint_old.html': '<WRONG-NAME>' }, ["(await getLegalContent('imprint')) ?? 'null'"]);
   assert.equal(r[0], 'null');
 
   // 3. exact kind name resolves

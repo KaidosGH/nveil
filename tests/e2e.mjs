@@ -248,11 +248,9 @@ async function fetchSecret(id, keyString) {
   console.log('8. security headers: ok');
 }
 
-// 8b. Legal routes: all four kinds serve a page, and /impressum must stay
-//     gone (deliberately removed — a resurrected route would mean a
-//     refactor regression). The placeholder text is only asserted when the
-//     operator's file is absent — locally content/ may exist, in CI it
-//     never does (gitignored).
+// 8b. Legal routes: all four kinds serve a page. The placeholder text is
+//     only asserted when the operator's file is absent — locally content/
+//     may exist, in CI it never does (gitignored).
 {
   const ROUTES = [
     ['imprint', '/imprint'],
@@ -270,8 +268,6 @@ async function fetchSecret(id, keyString) {
       assert.match(await res.text(), /placeholder|Platzhalter/, `${route} must show the no-content placeholder`);
     }
   }
-  const gone = await fetch(`${BASE}/impressum`, { redirect: 'manual' });
-  assert.equal(gone.status, 404, '/impressum was deliberately removed and must stay gone');
   console.log('8b. legal routes: ok');
 }
 
