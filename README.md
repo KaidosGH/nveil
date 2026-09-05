@@ -183,11 +183,24 @@ npm run build    # production build
 npm run check    # self-checks: crypto round trip, IP spoof protection, body cap, markdown sanitizer, legal loader, schema drift
 ```
 
-The full e2e suite (`npm run test:e2e` → `tests/e2e.mjs`) and the browser UI
-regression suite (`npm run test:ui` → `tests/ui-regression.mjs`) each run
-against a production server (`npm run build && npm start`) with a Postgres
-database — the same checks the bundled CI workflow executes. A few focused
-Playwright checks from past fix-PRs live beside them
+Both test suites run as one command — the orchestrator (`tests/orchestrate.mjs`)
+spins up a throwaway Postgres (Docker), builds the app if no build exists yet,
+starts a production server on a free port, runs the suite, and tears everything
+down. The scratch database is a `--rm` container with a random password: dev
+data and `.env` are never touched, nothing persists after the run (`KEEP_DB=1`
+keeps it around for debugging):
+
+```bash
+npm run test:e2e    # API e2e suite against the full stack
+npm run test:ui     # browser regression suite — needs a browser: system
+                    # Edge/Chrome, or `npx playwright install chromium` once
+```
+
+Already have a server running? `BASE_URL=http://localhost:3100 npm run
+test:e2e` skips the orchestration and runs the suite against it — this
+passthrough mode is exactly what CI uses. `FORCE_BUILD=1` forces a rebuild.
+
+A few focused Playwright checks from past fix-PRs live beside them
 (`tests/qr-visual-check.mjs`, `tests/qr-stale-state-check.mjs`,
 `tests/secret-width-check.mjs`) — they stub the API and need a server but no
 database; run each with `node tests/<name>.mjs` (see its header for the
