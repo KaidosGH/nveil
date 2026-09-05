@@ -44,8 +44,15 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-body {
+/* Background lives on <html>, not body: body paints in-flow, ABOVE the
+   fixed -z-10 background effect (Ribbon Field / static fallback) — an
+   opaque body background would hide it. layout.tsx also sets the same
+   color inline on <html> so the canvas is dark before CSS arrives. */
+html {
   background: var(--background);
+}
+
+body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
 }
