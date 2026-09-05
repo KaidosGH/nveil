@@ -5,7 +5,7 @@ import { db, deleteExpired } from '@/lib/db';
 import { abuseReports, secrets } from '@/drizzle/schema';
 import { abuseReportSchema } from '@/lib/validation';
 import { ABUSE_REPORTS_ENABLED } from '@/lib/deployment';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
+import { clientIp, RATE_LIMITS, rateLimit } from '@/lib/rate-limit';
 import { verifyKeyChecksum } from '@/lib/key-checksum';
 import { apiMessage } from '@/lib/i18n-server';
 import { readBodyCapped } from '@/lib/request-body';
@@ -27,7 +27,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Reports are rare — a hard cap keeps the queue from being flooded.
-  const limit = rateLimit(`abuse:${await clientIp(request.headers)}`, 10, 60 * 60 * 1000);
+  const limit = rateLimit(
+    `abuse:${await clientIp(request.headers)}`,
+    RATE_LIMITS.abuseReportsPerHour,
+    60 * 60 * 1000,
+  );
   if (!limit.ok) {
     return NextResponse.json(
       { error: 'rate_limited', message: apiMessage(request, 'rate_limited') },

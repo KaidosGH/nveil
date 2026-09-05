@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { desc, eq, isNull } from 'drizzle-orm';
 import { db, deleteExpired } from '@/lib/db';
 import { abuseReports, secrets } from '@/drizzle/schema';
-import { verifyAbuseKey } from '@/lib/abuse-key';
-import { ABUSE_REPORTS_ENABLED } from '@/lib/deployment';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
-
-function forbidden() {
-  return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-}
+import { requireAbuseAdmin } from '@/lib/abuse-key';
 
 /**
  * Admin queue: reports with live existence of the underlying secret.
@@ -16,19 +10,8 @@ function forbidden() {
  * also returns closed ones (they are purged after the retention window).
  */
 export async function GET(request: NextRequest) {
-  // The key itself is unguessable; the limiter blunts brute force in case an
-  // operator picked a guessable (>= 32 char) passphrase as the key.
-  const limit = rateLimit(`abuse-admin:${await clientIp(request.headers)}`, 30, 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json(
-      { error: 'rate_limited' },
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
-    );
-  }
-
-  if (!ABUSE_REPORTS_ENABLED || !verifyAbuseKey(request.headers.get('x-abuse-key') ?? '')) {
-    return forbidden();
-  }
+  const denied = await requireAbuseAdmin(request);
+  if (denied) return denied;
 
   await deleteExpired();
 

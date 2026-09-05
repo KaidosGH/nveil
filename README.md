@@ -99,6 +99,8 @@ through to the app container).
 | `NVEIL_CLOUDFLARE_RANGES_URL` | built-in list | Refresh source for the Cloudflare edge IPs used to validate `CF-Connecting-IP` |
 | `RATE_LIMIT_VIEW_PER_MINUTE` | `120` | View limit per client IP |
 | `RATE_LIMIT_DELETE_PER_MINUTE` | `60` | Delete limit per client IP |
+| `RATE_LIMIT_ABUSE_REPORTS_PER_HOUR` | `10` | Abuse report limit per client IP (when abuse reporting is on) |
+| `RATE_LIMIT_ABUSE_ADMIN_PER_MINUTE` | `30` | Operator queue action limit per client IP (raise for large bulk deletes) |
 
 ### Legal pages (privacy notice, imprint, cookies, terms)
 

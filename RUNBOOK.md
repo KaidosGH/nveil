@@ -31,7 +31,7 @@ instance. Assumes the docker-compose deployment from the repository root.
    - **unverified + vague reason** → skeptical; dismissing is legitimate. Secrets self-expire (≤ 31 days, usually far less), so "do nothing" is a real option.
    - **anything describing clearly illegal content** → delete regardless of badge; the badge informs triage, never blocks action.
    - **live** status → the secret still exists; **gone / dismissed** → already expired/deleted, close with **Dismiss**.
-4. **Bulk**: "Delete all N live secrets" behind the confirm button — use for coordinated abuse campaigns.
+4. **Bulk**: "Delete all N live secrets" behind the confirm button — use for coordinated abuse campaigns. Bulk runs one delete call per report through the operator rate limit (30/min default): with very large queues, raise `RATE_LIMIT_ABUSE_ADMIN_PER_MINUTE` or work in batches, or the tail of the queue will be rate-limited away.
 5. Anonymous in-app reports are informal notices — they do not identify a reporter, so they are not formally "duly substantiated" notices under the DSA (no contact channel). Fine for this handling model; document this boundary if you operate a large public instance.
 6. Deleting via the queue is the primary tool. As a last resort (queue unreachable), delete directly:
    ```bash

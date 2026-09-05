@@ -24,6 +24,8 @@ export const RATE_LIMITS = {
   createPerHour: envLimit('RATE_LIMIT_CREATE_PER_HOUR', 30),
   viewPerMinute: envLimit('RATE_LIMIT_VIEW_PER_MINUTE', 120),
   deletePerMinute: envLimit('RATE_LIMIT_DELETE_PER_MINUTE', 60),
+  abuseReportsPerHour: envLimit('RATE_LIMIT_ABUSE_REPORTS_PER_HOUR', 10),
+  abuseAdminPerMinute: envLimit('RATE_LIMIT_ABUSE_ADMIN_PER_MINUTE', 30),
 } as const;
 
 export function rateLimit(
