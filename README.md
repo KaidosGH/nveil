@@ -157,7 +157,7 @@ days, and check the abuse queue when reports arrive.
 - All crypto is `crypto.subtle` (AES-256-GCM, 96-bit IV); keys and creator tokens are 256-bit random.
 - Creator tokens are stored as SHA-256 hashes and compared with `timingSafeEqual`.
 - Strict CSP with nonces, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, HSTS; secrets render as plain text by default; optional markdown rendering goes through `rehype-sanitize` with a structural allowlist (raw HTML is never executed).
-- Oversized request bodies (Content-Length) are rejected before parsing; all bundled reverse-proxy examples additionally cap bodies at 1 MB (chunked transfer can bypass the Content-Length check).
+- Request bodies are capped at 300 KB for the JSON endpoints — enforced while reading the body, independent of `Content-Length`, so chunked transfer cannot bypass the cap. The reverse-proxy examples additionally cap bodies at 1 MB as defense in depth; the Cloudflare Tunnel example cannot (cloudflared has no body-size option), which is acceptable because the app-side cap holds everywhere.
 - Password-protected secrets: the server only stores/serves the PBKDF2-wrapped key envelope, so offline guessing is bounded by 600k-iteration PBKDF2 — the password's strength carries the security.
 - Rate limiting is in-memory: fine for a single instance; multi-replica deployments should move it to Redis.
 - Never log plaintext or keys. Plaintext exists only in the browser's memory of the two parties.
@@ -178,7 +178,7 @@ publicly.
 ```bash
 npm run dev      # dev server (relaxed CSP for hot reload)
 npm run build    # production build
-npm run check    # crypto self-check (round trip, checksums, encodings)
+npm run check    # self-checks: crypto round trip, IP spoof protection, body cap, markdown sanitizer, legal loader, schema drift
 ```
 
 The full e2e suite (`npm run test:e2e` → `tests/e2e.mjs`) and the browser UI

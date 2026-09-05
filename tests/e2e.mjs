@@ -168,13 +168,29 @@ async function fetchSecret(id, keyString) {
 }
 
 // 6. Oversized request bodies are rejected before parsing (memory-DoS guard).
+//    Both transfer shapes: honest Content-Length over the cap, and a chunked
+//    body with no Content-Length at all — the streamed cap counts actual
+//    bytes, so both must 413 (see lib/request-body.ts).
 {
+  const oversized = JSON.stringify({ ciphertext: 'X'.repeat(300_001) });
   const response = await fetch(`${BASE}/api/secrets`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ciphertext: 'X'.repeat(300_001) }),
+    body: oversized,
   });
   assert.equal(response.status, 413);
+  const chunked = await fetch(`${BASE}/api/secrets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(oversized));
+        controller.close();
+      },
+    }),
+    duplex: 'half',
+  });
+  assert.equal(chunked.status, 413, 'chunked body without Content-Length must hit the same cap');
   console.log('6. oversized payload rejection: ok');
 }
 
