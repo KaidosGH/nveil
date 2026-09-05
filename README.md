@@ -16,7 +16,8 @@ Source: [github.com/KaidosGH/nveil](https://github.com/KaidosGH/nveil)
 - **QR codes** — share the secret or management link optically; the QR encodes exactly the URL shown on screen
 - **Management links** — delete a secret before it expires, without revealing it
 - **Abuse reporting** — public report dialog and a key-protected operator queue
-- **Bilingual UI** (English / German, toggle in the footer) with German legal pages
+- **Bilingual UI** (English / German, toggle in the footer)
+- **Legal pages** — fill-in templates for privacy notice, imprint, cookies and terms; the footer links only the pages you actually provide (see "Legal pages" below)
 - **Zero tracking** — no analytics, no third-party requests; the only cookie stores the language choice (`nveil-lang`); dark UI with a performance-effects toggle
 
 ## How it works
@@ -86,7 +87,7 @@ through to the app container).
 | `POSTGRES_PASSWORD` | *(required, no default)* | Database password — applies on **first** volume initialization only |
 | `PORT` | `3000` | App port (container + host mapping + healthcheck all follow it) |
 | `DATABASE_URL` | compose sets it | Only needed when running the app **outside** Docker |
-| `NVEIL_PUBLIC` | `false` | Shows the privacy / imprint links in the footer (the footer itself — source link, language and effects toggles — is always visible) |
+| `NVEIL_PUBLIC` | `false` | Shows the legal links in the footer — but only for documents that exist in `content/` (see "Legal pages" below); the footer itself — source link, language and effects toggles — is always visible |
 | `NVEIL_DEFAULT_LANGUAGE` | `en` | UI language until the visitor toggles (`en` / `de`) |
 | `NVEIL_CONTACT_EMAIL` | — | General contact; used in `security.txt` |
 | `NVEIL_REPORT_ABUSE` | `false` | Enables the abuse dialog and the operator queue |
