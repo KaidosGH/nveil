@@ -7,7 +7,7 @@ import { clientIp, rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { apiMessage } from '@/lib/i18n-server';
 import { readBodyCapped } from '@/lib/request-body';
 
-/** JSON body cap: ciphertext max (200 KB) + envelope/metadata overhead. */
+/** JSON body cap: ciphertext max (~137 KB) + envelope/metadata overhead. */
 const BODY_CAP = 300_000;
 
 export async function POST(request: NextRequest) {

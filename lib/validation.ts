@@ -15,7 +15,10 @@ const wrapField = (label: string, min: number, max = 200) =>
  */
 export const createSecretSchema = z
   .object({
-    ciphertext: z.string().regex(b64).min(1).max(200_000),
+    // 100 KiB plaintext + 16-byte GCM tag = 136,556 base64url chars: the
+    // documented 100 KB content cap, enforced server-side without the server
+    // ever seeing plaintext.
+    ciphertext: z.string().regex(b64).min(1).max(136_556),
     iv: z.string().regex(b64).length(16),
     keyChecksum: z.string().regex(b64).length(43),
     creatorTokenHash: z.string().regex(b64).length(43),
