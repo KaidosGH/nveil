@@ -250,6 +250,27 @@ async function fetchSecret(id, keyString) {
   console.log('7b. password envelope validation: ok');
 }
 
+// 7c. Stored-content cap: 100 KiB plaintext + 16-byte GCM tag = 136,556
+//     base64url chars is the longest valid ciphertext — the documented
+//     100 KB limit, enforced server-side without the server seeing plaintext.
+{
+  const post = (ciphertext) => fetch(`${BASE}/api/secrets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ciphertext,
+      iv: 'A'.repeat(16),
+      keyChecksum: 'A'.repeat(43),
+      creatorTokenHash: 'A'.repeat(43),
+      burnAfterRead: false,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    }),
+  });
+  const overCap = await post('X'.repeat(136_557));
+  assert.equal(overCap.status, 400, 'ciphertext beyond the 100 KB content cap must be rejected');
+  console.log('7c. content size cap: ok');
+}
+
 // 8. Security headers present.
 {
   const response = await fetch(`${BASE}/`);

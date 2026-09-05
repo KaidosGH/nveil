@@ -115,7 +115,7 @@ files into the gitignored `content/` directory:
 
 ```
 content/privacy.html               # or privacy.txt   — expected on essentially every public instance
-content/imprint.html               # or imprint.txt   — EU operators (§5 DDG); footer label: "Impressum"
+content/imprint.html               # or imprint.txt   — EU operators (§5 DDG); footer label: "Imprint" (de: "Impressum")
 content/cookies_and_tracking.html  # optional standalone cookie disclosure — GDPR prefers it inside the privacy notice
 content/tos.html                   # optional terms of service — DSA Art. 14 for public instances, US convention
 ```

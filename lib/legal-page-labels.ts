@@ -3,13 +3,12 @@
  * and lib/legal-page.tsx. Kept separate so importers never pull the React
  * component module.
  *
- * The imprint label leads with "Impressum" in every locale: the page
- * targets operators hosted in Germany, where that is the term readers
- * (and §5 DDG) know; the English name follows for everyone else. Other
- * host countries would localize differently.
+ * Labels are per-locale endonyms: each locale names the page the way its
+ * readers know it (de: "Impressum" per §5 DDG), with no host-region
+ * assumption baked into the default.
  */
 export const LABELS = {
-  imprint: { en: 'Impressum / Imprint', de: 'Impressum', route: '/imprint' },
+  imprint: { en: 'Imprint', de: 'Impressum', route: '/imprint' },
   privacy: { en: 'Privacy', de: 'Datenschutz', route: '/privacy' },
   cookies_and_tracking: { en: 'Cookies & Tracking', de: 'Cookies & Tracking', route: '/cookies-and-tracking' },
   tos: { en: 'Terms', de: 'Nutzungsbedingungen', route: '/tos' },
