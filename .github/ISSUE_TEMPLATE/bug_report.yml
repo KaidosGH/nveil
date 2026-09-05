@@ -1,0 +1,66 @@
+name: Bug report
+description: Something in nveil does not work as documented or expected.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **This is a public issue tracker — never post secret material.**
+        Do **not** include:
+        - secret contents or the text you shared,
+        - secret links (everything after `#` in the URL is the **decryption key**),
+        - manage links (everything after `#` is the **deletion token**),
+        - passwords for password-protected secrets.
+
+        nveil's server log contains no request data by design, so the useful
+        diagnostics are almost always in your **browser console** (F12 → Console).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps from a fresh page load. Use `[redacted]` placeholders for any secret material.
+      placeholder: |
+        1. Create a secret with burn-after-read enabled
+        2. Open the link in ...
+        3. See error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: nveil version
+      description: The release (e.g. 0.2.0) or commit, if built from source.
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      description: Which setup is the app running in? (See deploy/ in the repository.)
+      options:
+        - 1-bundled-caddy
+        - 2-shared-caddy
+        - 3-nginx
+        - 4-cloudflare-tunnel
+        - 5-host-proxy
+        - Bare node (npm start / development)
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      description: Only relevant for UI problems — e.g. "Firefox 141 / Windows 11".
+  - type: textarea
+    id: logs
+    attributes:
+      label: Browser console output
+      description: "F12 → Console, if applicable. Remember: no secret material (see the warning above)."
