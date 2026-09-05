@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an idea or capability for nveil.
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        nveil has a deliberate posture: **zero-knowledge** (the server stores
+        ciphertext and hashes only), **no tracking, no third-party requests,
+        minimal logging**. Ideas that would require the server to see plaintext,
+        keys, or identifiable request data are unlikely to fit — but if your
+        idea improves the experience *within* that posture, this is the place.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what stands in the way? Describe the problem, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you want to happen, concretely.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, existing workarounds, or other tools that solve it.
