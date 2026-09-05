@@ -10,4 +10,4 @@ docker-compose.yml:generic-password:21
 # ci.yml: throwaway CI service-database credentials — handled by inline
 # betterleaks:allow comments in the file (drift-proof), not pinned lines here.
 # i18n strings and the e2e fixture (UI labels/messages, not credentials) use
-# drift-proof betterleaks:allow inline comments in lib/i18n.ts and tests/e2e.mjs.
+# drift-proof betterleaks:allow inline comments in lib/i18n/en.ts, de.ts and tests/e2e.mjs.
