@@ -1,0 +1,22 @@
+# Cloudflare Tunnel: no open ports, no local TLS termination. cloudflared
+# holds an outbound connection to Cloudflare's edge; the public hostname's
+# TLS lives at Cloudflare. Requires a Cloudflare account and the domain's
+# DNS on Cloudflare.
+#
+# Usage:
+#   1. Create a tunnel in the Cloudflare Zero Trust dashboard (or with
+#      `cloudflared tunnel create nveil`) and note the tunnel token
+#   2. Set TUNNEL_TOKEN in .env (or mount the credentials file instead)
+#   3. Route the tunnel: public hostname secrets.example.com -> http://nveil-app:3000
+#   4. docker compose -f docker-compose.yml -f deploy/4-cloudflare-tunnel/compose.override.yml up -d --build
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest@sha256:51c9cefcb4569df44e1ad403ab1d3d8065aa8e84339bcfc6aee75502e1140339
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    networks:
+      - default
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped

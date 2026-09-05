@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # Same privacy stance as the Dockerfile: builds on CI runners report nothing.
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Throwaway CI service-database credentials, not secrets.
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nveil # betterleaks:allow — CI service db, not a credential
+          POSTGRES_PASSWORD: nveil # betterleaks:allow — CI service db, not a credential
+          POSTGRES_DB: nveil
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U nveil -d nveil"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://nveil:nveil@localhost:55432/nveil # betterleaks:allow — CI service db, not a credential
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Node 24 bundles npm 11: npm 10's audit endpoint (audits/quick) is
+      # being retired by the registry and returns 400 — npm 11 uses the
+      # bulk advisory endpoint.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm audit --omit=dev
+
+      - run: npm run build
+
+      - run: npm run check
+
+      - name: E2E tests
+        # Rate-limit test 10 asserts a real 429, so the server runs at the
+        # default create limit here. The UI suite needs its own headroom —
+        # it runs on a second server (below) with the limit raised, because
+        # it creates secrets after e2e has already spent this budget.
+        run: |
+          npx next start -p 3200 -H 0.0.0.0 &
+          # Poll the health endpoint instead of a fixed sleep — starts as soon
+          # as the server is ready, fails loudly if it never comes up.
+          # --max-time keeps a hanging request from stalling the loop.
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://localhost:3200/api/health > /dev/null 2>&1; then break; fi
+            if [ "$i" = 30 ]; then echo "server did not become healthy" >&2; exit 1; fi
+            sleep 1
+          done
+          BASE_URL=http://localhost:3200 npm run test:e2e
+
+      # UI regression tests need a browser: CI runners ship Edge (msedge).
+      # Own server on 3201 with a raised create limit: they create secrets
+      # and must not collide with the budget e2e spent on the 3200 server.
+      - name: UI regression tests
+        env:
+          RATE_LIMIT_CREATE_PER_HOUR: 1000
+        run: |
+          npx next start -p 3201 -H 0.0.0.0 &
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://localhost:3201/api/health > /dev/null 2>&1; then break; fi
+            if [ "$i" = 30 ]; then echo "server did not become healthy" >&2; exit 1; fi
+            sleep 1
+          done
+          BASE_URL=http://localhost:3201 npm run test:ui
+
+  publish-image:
+    # Runs only on v* tags, after the full test suite passed.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push to GHCR
+        run: |
+          # Docker image names must be lowercase; expanded here (not in env:)
+          # so bash performs the lowercasing.
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker buildx build --push \
+            --tag "$IMAGE:${GITHUB_REF_NAME#v}" \
+            --tag "$IMAGE:latest" \
+            --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+            --label org.opencontainers.image.version="${GITHUB_REF_NAME#v}" \
+            .

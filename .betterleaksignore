@@ -1,0 +1,13 @@
+# betterleaks ignore file — verified false positives only.
+# .env.example: documented placeholder credentials (nveil/nveil)
+.env.example:generic-credential-uri:2
+.env.example:generic-credential-uri:4
+.env.example:generic-credential-uri:11
+.env.example:generic-password:3
+# compose: PASSWORD guard interpolates from .env — the "nveil" is a fallback
+# default for local dev, rejected for production by the :? guard on POSTGRES_PASSWORD.
+docker-compose.yml:generic-password:21
+# ci.yml: throwaway CI service-database credentials — handled by inline
+# betterleaks:allow comments in the file (drift-proof), not pinned lines here.
+# i18n strings and the e2e fixture (UI labels/messages, not credentials) use
+# drift-proof betterleaks:allow inline comments in lib/i18n.ts and tests/e2e.mjs.

@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/* Forced dark-grey theme for the entire app. */
+:root {
+  color-scheme: dark;
+  --background: #0b0b0d;
+  --foreground: #e9e9ec;
+  --card: #141417;
+  --card-foreground: #e9e9ec;
+  --muted: #1d1d21;
+  --muted-foreground: #a8a8b3;
+  --primary: #2c2c31;
+  --primary-hover: #38383e;
+  --primary-foreground: #f2f2f4;
+  /* Destructive pair: the base is a button background (white on it passes AA
+     at 6.6:1); red *text* uses the lighter foreground token — the base red on
+     card is only 2.8:1 (WCAG 1.4.3). */
+  --destructive: #a8322c;
+  --destructive-foreground: #e0857d;
+  --border: #26262b;
+  --input: #2c2c31;
+  /* Focus ring: >= 3:1 against card/muted backgrounds (WCAG 1.4.11). */
+  --ring: #8a8a95;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Inter variable (latin), self-hosted. The URL matches the preload link in
+   app/layout.tsx so the browser fetches exactly one copy. Fallback is the
+   metric-compatible system stack (no layout shift while loading). */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter-latin-var.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+html {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, sans-serif;
+}
+
+/* Screen-reader-only content (a11y announcements, WCAG) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Motion: short fade/scale on state changes only (secret reveal, create
+   result, copy feedback, modal open) — no scroll-triggered or ambient
+   animation beyond the background effect. The omitted `to` keyframe animates
+   to the element's natural state. Disabled entirely for reduced-motion
+   users, mirroring the background effect's gate. */
+@keyframes nveil-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes nveil-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes nveil-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.animate-fade-up {
+  animation: nveil-fade-up 240ms ease-out both;
+}
+
+.animate-pop {
+  animation: nveil-pop 160ms ease-out both;
+}
+
+/* Modal backdrop: fades in alongside the popping card so overlay and dialog
+   read as one surface. Exit stays instant (snappy dismissal). */
+.animate-fade {
+  animation: nveil-fade 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-pop,
+  .animate-fade {
+    animation: none;
+  }
+}
+
+/* Code highlighting (rehype-highlight/lowlight, common language subset).
+   Restrained palette: greys plus two low-saturation accents (teal for
+   keywords, gold for literals). All colors >= 4.5:1 on the code-block
+   background (--muted). */
+.hljs-comment,
+.hljs-quote {
+  color: #8a8a95;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-tag,
+.hljs-name,
+.hljs-meta,
+.hljs-section {
+  color: #7fd4cf;
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: #b9ded9;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-built_in,
+.hljs-type {
+  color: #e3b980;
+}
+.hljs-title,
+.hljs-function {
+  color: #f2f2f4;
+  font-weight: 600;
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-link {
+  color: var(--foreground);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+.hljs-deletion {
+  color: var(--destructive-foreground);
+}

@@ -1,0 +1,48 @@
+<!--
+  Operator template — replace every [bracketed] field and delete the
+  sections that do not apply to you. No legal text is provided on purpose:
+  the documents describe YOUR identity and YOUR processing.
+
+  Mount the filled-in file as content/imprint.html (or .txt) — see README,
+  "Legal pages".
+
+  WHO NEEDS THIS PAGE: EU operators (Germany: §5 DDG Diensteanbieter-
+  Kennzeichnung; DSA Art. 24 operator identification). The US has no
+  imprint requirement — outside the EU you can simply not ship this file,
+  and the footer link then never appears.
+
+  The footer label reads "Impressum / Imprint" in English and "Impressum"
+  in German — this software targets German-hosted instances, where that
+  is the term readers (and §5 DDG) know.
+-->
+<h1>Impressum / Imprint</h1>
+
+<!-- [EU: required — §5 DDG] Full operator identification.
+     Individuals: name + address. Legal entities additionally: legal form,
+     authorized representative, register court + number, VAT ID where
+     applicable. Address must be a postal address, no P.O. box. -->
+<h2>Operator</h2>
+<p>[Legal name], [legal form]<br>
+[Street and number, postal code, city, country]<br>
+[Authorized representative — legal entities only]<br>
+[Register court and number]<br>
+[VAT ID]</p>
+
+<!-- [EU: required — §5 DDG] Email plus a "fast contact channel" (phone is
+     the safe answer). This address also appears in /.well-known/security.txt
+     when NVEIL_CONTACT_EMAIL is set — keep them consistent. -->
+<h2>Contact</h2>
+<p>Email: [email]<br>
+Phone: [phone number]</p>
+
+<!-- [Non-EU operators serving EU users only — DSA Art. 13] Legal
+     representative established in the EU. Delete this section if you are
+     established in the EU (e.g. a German operator). -->
+<!-- <h2>EU legal representative</h2>
+<p>[Name and postal address of your EU representative]</p> -->
+
+<!-- [Optional — GDPR Art. 13(1)(b)] Only if you appointed a Data Protection
+     Officer; appointing one creates publication duties (Art. 37(7)). Most
+     small operators have none — delete this section. -->
+<!-- <h2>Data protection contact</h2>
+<p>[DPO or privacy contact address]</p> -->

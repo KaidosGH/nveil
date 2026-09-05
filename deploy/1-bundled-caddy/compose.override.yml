@@ -1,0 +1,25 @@
+# Standalone public deployment: nveil brings its own Caddy with automatic
+# HTTPS (Let's Encrypt) on ports 80/443. Requires the DNS record for your
+# domain to point at this server BEFORE the first start.
+#
+# Usage:
+#   cp .env.example .env   # set POSTGRES_PASSWORD (and NVEIL_* flags)
+#   # put your domain in Caddyfile below
+#   docker compose -f docker-compose.yml -f deploy/1-bundled-caddy/compose.override.yml up -d --build
+
+services:
+  caddy:
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/1-bundled-caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:

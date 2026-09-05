@@ -1,0 +1,20 @@
+#!/bin/sh
+# Pre-commit secret scan via betterleaks (gitleaks successor, MIT).
+# Tracked in the repo so clones get it: git config core.hooksPath .githooks
+#
+# Bypass (only if you REALLY know what you are doing): git commit --no-verify
+
+if ! command -v betterleaks > /dev/null 2>&1; then
+  echo "⚠  betterleaks not found — secret scan skipped."
+  echo "   Install it so secrets never get committed: https://github.com/betterleaks/betterleaks"
+  echo "   (brew install betterleaks | scoop install betterleaks | go install github.com/betterleaks/betterleaks@latest)"
+  exit 0
+fi
+
+betterleaks git --pre-commit --redact --staged --verbose
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "✖ Commit rejected: potential secrets in staged files."
+  echo "  Remove the secrets (put them in .env, which is gitignored) and try again."
+  exit 1
+fi

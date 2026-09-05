@@ -1,0 +1,20 @@
+# Add to your existing Caddyfile (the Caddy container must be on the same
+# external "proxy" network). Caddy reloads config automatically on file
+# change, or: docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile
+{$NVEIL_DOMAIN} {
+        # Discard access logs: the app itself logs nothing (privacy promise),
+        # and Caddy would otherwise log every request with client IPs to
+        # container stdout (retained by Docker). Re-enable deliberately:
+        #   log { output stdout }
+        log {
+                output discard
+        }
+        # Cap request bodies: the app's Content-Length check is bypassable via
+        # chunked transfer, so this is the real DoS guard. Valid payloads are
+        # ~200 KB; 1MB leaves headroom.
+        request_body {
+                max_size 1MB
+        }
+        reverse_proxy nveil-app:3000
+        # nveil already sends its own HSTS; per-site headers are optional here.
+}

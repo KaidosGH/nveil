@@ -1,0 +1,13 @@
+/* Host styles the ThreeUI component expects from the package style.css. */
+.threeui-background {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.threeui-background canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

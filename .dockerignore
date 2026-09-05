@@ -1,0 +1,14 @@
+# Keep secrets and local state out of the build context. The builder stage
+# does `COPY . .` — without this, .env would land in the builder layer cache.
+.env
+.env.*
+!.env.example
+.git
+.zcode
+.next
+node_modules
+content
+tests
+tsconfig.tsbuildinfo
+*-report.json
+betterleaks-report.*

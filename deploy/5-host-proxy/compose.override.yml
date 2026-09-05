@@ -1,0 +1,29 @@
+# Proxy outside Docker (bare-metal nginx/Caddy, corporate gateway): bind the
+# app to loopback ONLY (127.0.0.1), so it is reachable on the machine itself
+# for the host-level proxy — and unreachable from the network directly.
+#
+# Combine with the shared proxy network if you ALSO front the app with an
+# in-Docker proxy: keep the loopback bind AND uncomment the networks block
+# below; the proxy reaches nveil-app:3000 over the network while 127.0.0.1
+# stays available on the host.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f deploy/5-host-proxy/compose.override.yml up -d --build
+#   # host proxy (bare-metal Caddy):
+#   #   secrets.example.com {
+#   #       reverse_proxy 127.0.0.1:3000
+#   #   }
+
+services:
+  app:
+    expose: []
+    ports:
+      - '127.0.0.1:${PORT:-3000}:${PORT:-3000}'
+    # Optional: also attach to a shared in-Docker proxy network
+    # networks:
+    #   - default
+    #   - proxy
+
+# networks:
+#   proxy:
+#     external: true

@@ -1,0 +1,20 @@
+# Shared external "proxy" network with nginx as the TLS terminator
+# (certbot-managed certificates). No ports published from nveil.
+#
+# Usage:
+#   docker network create proxy
+#   # obtain certificates with certbot for your domain, then reference them
+#   # in the site config below
+#   docker compose -f docker-compose.yml -f deploy/3-nginx/compose.override.yml up -d --build
+#   # run your nginx on the same "proxy" network with the site config from
+#   # nginx-site.conf in this directory
+
+services:
+  app:
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true

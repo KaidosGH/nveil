@@ -1,0 +1,57 @@
+services:
+  app:
+    container_name: nveil-app
+    build: .
+    # Reverse-proxy deployments reach this container over a shared Docker
+    # network (see deploy/ for ready-made examples). To expose a host port
+    # for a non-Docker proxy instead, replace with:
+    #   ports: ['127.0.0.1:3000:3000']
+    expose:
+      - '${PORT:-3000}'
+    environment:
+      # Next's standalone server otherwise binds to the container hostname
+      # (Docker sets HOSTNAME to the container id) and the healthcheck cannot
+      # reach it on 127.0.0.1.
+      HOSTNAME: 0.0.0.0
+      PORT: ${PORT:-3000}
+      # Compose builds the URL; the password applies on FIRST volume init only.
+      DATABASE_URL: postgresql://nveil:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/nveil
+    env_file:
+      - path: .env
+        required: false
+    # Operator legal content (content.example/ has the templates). The host
+    # directory is auto-created empty on first start if absent — an empty
+    # mount is fine: pages serve placeholders and the footer shows no legal
+    # links until files appear (picked up live, no restart needed).
+    volumes:
+      - ./content:/app/content:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Real endpoint check (includes a database round trip).
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/api/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    environment:
+      POSTGRES_USER: nveil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: nveil
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nveil -d nveil']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:

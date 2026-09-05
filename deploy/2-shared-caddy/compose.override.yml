@@ -1,0 +1,18 @@
+# You already run Caddy for other apps (external "proxy" Docker network).
+# This override attaches nveil to that network; your EXISTING Caddyfile gets
+# one block (see Caddyfile.snippet). No ports are published.
+#
+# Usage:
+#   docker network create proxy          # once, if it doesn't exist yet
+#   docker compose -f docker-compose.yml -f deploy/2-shared-caddy/compose.override.yml up -d --build
+#   # then add the snippet block to your running Caddy and reload it
+
+services:
+  app:
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true

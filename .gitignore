@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+content/
+
+# secret-scanner report files (they contain the findings they found)
+*-report.json
+betterleaks-report.*
+
+# ZCode workspace artifacts
+.zcode/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
