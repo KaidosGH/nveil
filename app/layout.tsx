@@ -65,6 +65,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </a>
           <InsecureContextWarning />
           <AppBackground />
+          {/* Operator announcement (content/announcement.txt) — an optional
+              notice bar at the very top of every page: demo disclaimer,
+              maintenance window, incident note. Plain text, non-dismissible:
+              the operator chose to show it. */}
+          {announcement && (
+            <div
+              role="note"
+              className="border-b border-border/60 bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
+            >
+              {announcement}
+            </div>
+          )}
           <header className="px-4 pt-4 sm:px-6 sm:pt-5">
             <Link
               href="/"
@@ -81,18 +93,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               />
             </Link>
           </header>
-          {/* Operator announcement (content/announcement.txt) — an optional
-              notice on every page: demo disclaimer, maintenance window,
-              incident note. Plain text, non-dismissible: the operator chose
-              to show it. */}
-          {announcement && (
-            <div
-              role="note"
-              className="border-b border-border/60 bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
-            >
-              {announcement}
-            </div>
-          )}
           {/* min-w-0 lets this flex item shrink so inner overflow containers scroll
               instead of stretching the page (e.g. the abuse-reports table). */}
           <div id="main-content" className="flex min-w-0 flex-1 flex-col">{children}</div>
