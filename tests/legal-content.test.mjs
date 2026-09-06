@@ -1,7 +1,7 @@
-// Self-check for the legal-content loader: kind→file-name resolution,
-// html-over-txt precedence, no-alias strictness, availability scan.
-// Uses process.env.CONTENT_DIR override (read via test cwd trick below) —
-// the loader reads <cwd>/content, so run with cwd = a temp fixture dir.
+// Self-check for the legal-content and announcement loaders: kind→file-name
+// resolution, html-over-txt precedence, no-alias strictness, availability
+// scan, announcement presence/blank/missing handling.
+// The loaders read <cwd>/content, so run with cwd = a temp fixture dir.
 // Run: node tests/legal-content.test.mjs
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -52,6 +52,15 @@ try {
   r = scenario({}, ["(await getLegalContent('privacy')) ?? 'null'", '(await availableLegalKinds()).length']);
   assert.equal(r[0], 'null');
   assert.equal(r[1], '0');
+
+  // 6. announcement: present → trimmed text, whitespace-only → null, missing → null
+  r = scenario({ 'announcement.txt': '  demo instance — nothing here is private to the operator \n ' },
+    ['(await getAnnouncement()) ?? "null"']);
+  assert.equal(r[0], 'demo instance — nothing here is private to the operator');
+  r = scenario({ 'announcement.txt': '   \n\t ' }, ['(await getAnnouncement()) ?? "null"']);
+  assert.equal(r[0], 'null');
+  r = scenario({}, ['(await getAnnouncement()) ?? "null"']);
+  assert.equal(r[0], 'null');
 
   console.log('legal content loader self-check passed');
 } finally {
