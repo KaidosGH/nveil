@@ -115,7 +115,12 @@ export default function ManagementPage() {
 
   async function unlock() {
     setUnlockError(null);
-    const response = await authedFetch('/api/settings');
+    // The typed key is sent directly — it lands in sessionStorage only after
+    // this request succeeds (authedFetch reads from there, which would send
+    // an empty header on the very first unlock).
+    const response = await fetch('/api/settings', {
+      headers: { 'x-management-key': keyInput },
+    });
     if (!response.ok) {
       setUnlockError(tm.invalidKey);
       return;
