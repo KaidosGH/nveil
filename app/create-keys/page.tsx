@@ -205,6 +205,7 @@ export default function CreateKeysPage() {
                 onChange={(e) => setNewLabel(e.target.value)}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                 placeholder={ta.newKeyLabel}
+                maxLength={100}
               />
               <input
                 type="date"

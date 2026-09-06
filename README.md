@@ -195,6 +195,7 @@ days, and check the abuse queue when reports arrive.
 - Rate limiting is in-memory: fine for a single instance; multi-replica deployments should move it to Redis.
 - Never log plaintext or keys. Plaintext exists only in the browser's memory of the two parties.
 - Abuse reports store only the secret ID, an optional reason and timestamps — never reporter IPs, fragments or secret contents. Reports are only visible to holders of `NVEIL_REPORT_ABUSE_KEY`.
+- Optional create-key gate (managed instances): secret creation requires a 256-bit access key; only its SHA-256 hash, a label and lifecycle timestamps are stored — secrets are never linked to keys, and the key travels in an `httpOnly` cookie scripts cannot read.
 
 ## AI-assisted development
 

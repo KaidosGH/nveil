@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { clientIp, rateLimit } from './rate-limit.ts';
 
 /**
  * Optional create-key gate (NVEIL_CREATE_KEYS=require): on managed instances
@@ -36,6 +37,26 @@ export function verifyManagementKey(submitted: string): boolean {
   const submittedHash = createHash('sha256').update(submitted, 'utf8').digest();
   const expectedHash = createHash('sha256').update(MANAGEMENT_KEY, 'utf8').digest();
   return timingSafeEqual(submittedHash, expectedHash);
+}
+
+/**
+ * Gate shared by the create-keys management endpoints: per-IP limiter
+ * (brute-force blunting; the key itself is unguessable and fails closed),
+ * then the key check. Returns what the route should respond with, or
+ * { ok: true } when the caller is authorized. Deliberately framework-free
+ * (no next/server import) so the module stays testable with plain node.
+ */
+export async function requireManagement(
+  request: Request,
+): Promise<{ ok: true } | { ok: false; status: number; error: string; retryAfter?: number }> {
+  const limit = rateLimit(`mgmt:${await clientIp(request.headers)}`, 30, 60 * 1000);
+  if (!limit.ok) {
+    return { ok: false, status: 429, error: 'rate_limited', retryAfter: limit.retryAfterSeconds };
+  }
+  if (!MANAGEMENT_ENABLED || !verifyManagementKey(request.headers.get('x-management-key') ?? '')) {
+    return { ok: false, status: 401, error: 'unauthorized' };
+  }
+  return { ok: true };
 }
 
 export function isKeyUsable(row: { revokedAt: Date | null; expiresAt: Date | null }): boolean {

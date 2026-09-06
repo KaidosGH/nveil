@@ -3,20 +3,18 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { createKeys } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
-import { MANAGEMENT_ENABLED, verifyManagementKey } from '@/lib/create-keys';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
+import { requireManagement } from '@/lib/create-keys';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 /** Revokes a create key — takes effect immediately for every holder. */
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const limit = rateLimit(`mgmt:${await clientIp(request.headers)}`, 30, 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
-  }
-  await ensureSchema();
-  if (!MANAGEMENT_ENABLED || !verifyManagementKey(request.headers.get('x-management-key') ?? '')) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const gate = await requireManagement(request);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: gate.error },
+      { status: gate.status, headers: gate.retryAfter ? { 'Retry-After': String(gate.retryAfter) } : undefined },
+    );
   }
 
   const { id } = await context.params;

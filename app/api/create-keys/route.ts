@@ -5,21 +5,15 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { createKeys } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
-import { MANAGEMENT_ENABLED, generateCreateKey, verifyManagementKey } from '@/lib/create-keys';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
-
-function unauthorized() {
-  return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-}
+import { generateCreateKey, requireManagement } from '@/lib/create-keys';
 
 export async function GET(request: NextRequest) {
-  const limit = rateLimit(`mgmt:${await clientIp(request.headers)}`, 30, 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
-  }
-  await ensureSchema();
-  if (!MANAGEMENT_ENABLED || !verifyManagementKey(request.headers.get('x-management-key') ?? '')) {
-    return unauthorized();
+  const gate = await requireManagement(request);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: gate.error },
+      { status: gate.status, headers: gate.retryAfter ? { 'Retry-After': String(gate.retryAfter) } : undefined },
+    );
   }
   const rows = await db
     .select({
@@ -45,13 +39,12 @@ const createSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const limit = rateLimit(`mgmt:${await clientIp(request.headers)}`, 30, 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
-  }
-  await ensureSchema();
-  if (!MANAGEMENT_ENABLED || !verifyManagementKey(request.headers.get('x-management-key') ?? '')) {
-    return unauthorized();
+  const gate = await requireManagement(request);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: gate.error },
+      { status: gate.status, headers: gate.retryAfter ? { 'Retry-After': String(gate.retryAfter) } : undefined },
+    );
   }
 
   const raw = await request.json().catch(() => null);
