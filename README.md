@@ -2,7 +2,17 @@
 
 Self-hosted, zero-knowledge ephemeral secrets sharing. Share passwords, API keys and notes via links that encrypt in your browser and die on schedule.
 
+<p align="center">
+  <img src="docs/screenshot-landing.png" alt="nveil landing page — hero, demo banner and the Ribbon Field background" width="800">
+</p>
+
 The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookie is a functional one storing your language choice.
+
+**Try it live:** a public demo runs at [demo.nveil.app](https://demo.nveil.app) — the same software you would host. By zero-knowledge design it cannot read the secrets shared through it (keys never leave the browser), but it is still a demo: secrets there are wiped regularly, so host your own for real use (see [Deployment](#deployment-docker)).
+
+<p align="center">
+  <img src="docs/screenshot-reveal.png" alt="nveil — a decrypted secret; reading it consumed the burn-after-read secret" width="640">
+</p>
 
 Source: [github.com/KaidosGH/nveil](https://github.com/KaidosGH/nveil)
 
