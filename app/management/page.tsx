@@ -185,7 +185,9 @@ export default function ManagementPage() {
         }),
       });
       if (!response.ok) {
-        setUnlockError(tm.invalidKey);
+        // A 401 means the management key was rotated out from under this
+        // session; anything else (e.g. a database hiccup) is transient.
+        setUnlockError(response.status === 401 ? tm.invalidKey : tm.unreachable);
         return;
       }
       setSettings((await response.json()) as SettingsPayload);

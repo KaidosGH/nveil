@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { accessKeys } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
-import { generateCreateKey, requireManagement } from '@/lib/access-keys';
+import { generateAccessKey, requireManagement } from '@/lib/access-keys';
 
 export async function GET(request: NextRequest) {
   const gate = await requireManagement(request);
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  const key = generateCreateKey();
+  const key = generateAccessKey();
   const id = randomUUID();
   await db.insert(accessKeys).values({
     id,

@@ -6,8 +6,8 @@ import { ensureSchema } from '@/lib/db-init';
 import {
   ACCESS_KEY_COOKIE,
   ACCESS_KEYS_REQUIRED,
-  createKeyCookie,
-  createKeyCookieMaxAge,
+  accessKeyCookie,
+  accessKeyCookieMaxAge,
   isKeyUsable,
   keyHash,
 } from '@/lib/access-keys';
@@ -45,6 +45,6 @@ export async function POST(request: NextRequest) {
 
   await db.update(accessKeys).set({ lastUsedAt: new Date() }).where(eq(accessKeys.id, row.id));
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(createKeyCookie(parsed.data.key, createKeyCookieMaxAge(row.expiresAt)));
+  response.cookies.set(accessKeyCookie(parsed.data.key, accessKeyCookieMaxAge(row.expiresAt)));
   return response;
 }

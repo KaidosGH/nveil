@@ -22,7 +22,7 @@ export const ACCESS_KEY_COOKIE_CAP_S = 60 * 60 * 24 * 30;
 
 const RAW_PREFIX = 'nveil_';
 
-export function generateCreateKey(): { raw: string; hash: string; prefix: string } {
+export function generateAccessKey(): { raw: string; hash: string; prefix: string } {
   const raw = RAW_PREFIX + randomBytes(32).toString('base64url');
   return { raw, hash: keyHash(raw), prefix: raw.slice(0, RAW_PREFIX.length + 6) };
 }
@@ -69,14 +69,14 @@ export function isKeyUsable(row: { revokedAt: Date | null; expiresAt: Date | nul
  * Cookie lifetime never outlives the credential: capped at 30 days, and
  * shortened to a key's own expiry when that is sooner.
  */
-export function createKeyCookieMaxAge(expiresAt: Date | null): number {
+export function accessKeyCookieMaxAge(expiresAt: Date | null): number {
   if (!expiresAt) return ACCESS_KEY_COOKIE_CAP_S;
   const untilExpiry = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
   return Math.max(60, Math.min(ACCESS_KEY_COOKIE_CAP_S, untilExpiry));
 }
 
 /** Full cookie attributes — httpOnly keeps the key away from scripts entirely. */
-export function createKeyCookie(raw: string, maxAgeSeconds: number) {
+export function accessKeyCookie(raw: string, maxAgeSeconds: number) {
   return {
     name: ACCESS_KEY_COOKIE,
     value: raw,

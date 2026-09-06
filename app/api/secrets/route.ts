@@ -10,8 +10,8 @@ import { readBodyCapped } from '@/lib/request-body';
 import {
   ACCESS_KEY_COOKIE,
   ACCESS_KEYS_REQUIRED,
-  createKeyCookie,
-  createKeyCookieMaxAge,
+  accessKeyCookie,
+  accessKeyCookieMaxAge,
   isKeyUsable,
   keyHash,
 } from '@/lib/access-keys';
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   await ensureSchema();
 
   // Access-key gate (managed instances): unauthorized bodies are never read.
-  let keyCookie: ReturnType<typeof createKeyCookie> | null = null;
+  let keyCookie: ReturnType<typeof accessKeyCookie> | null = null;
   if (ACCESS_KEYS_REQUIRED) {
     const presented =
       request.headers.get('x-access-key') ?? request.cookies.get(ACCESS_KEY_COOKIE)?.value ?? '';
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       }
       return response;
     }
-    keyCookie = createKeyCookie(presented, createKeyCookieMaxAge(row.expiresAt));
+    keyCookie = accessKeyCookie(presented, accessKeyCookieMaxAge(row.expiresAt));
     await db.update(accessKeys).set({ lastUsedAt: new Date() }).where(eq(accessKeys.id, row.id));
   }
 
