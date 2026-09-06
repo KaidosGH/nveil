@@ -127,6 +127,15 @@ warning). Create `content/` next to `docker-compose.yml` (compose mounts
 it into the container automatically), fill in the files, done — dropping
 a file in makes the link appear without a restart.
 
+### Announcement banner
+
+An optional operational notice shown on every page: drop a
+`content/announcement.txt` file in and it appears, delete it and it is
+gone — no restart needed (same live behavior as the legal pages). It
+renders as plain text, centered above the page content. Typical uses: a
+demo disclaimer ("This is a demo instance — host your own for real
+use"), a maintenance window, or an incident note. Keep it short.
+
 ## API
 
 | Method | Route | Description |

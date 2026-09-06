@@ -6,6 +6,7 @@ import { AppBackground } from '@/components/app-background';
 import { InsecureContextWarning } from '@/components/insecure-context-warning';
 import { SiteFooter } from '@/components/site-footer';
 import { I18nProvider } from '@/components/i18n-provider';
+import { getAnnouncement } from '@/lib/announcement';
 import { getDict } from '@/lib/i18n/index';
 import { localeFromParts } from '@/lib/i18n-server';
 import './globals.css';
@@ -35,6 +36,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const locale = localeFromParts(cookieStore.get('nveil-lang')?.value);
+  const announcement = await getAnnouncement();
 
   // Pre-CSS canvas color: the browser paints this inline background before
   // globals.css arrives — keep it in sync with --background (#0b0b0d).
@@ -63,6 +65,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </a>
           <InsecureContextWarning />
           <AppBackground />
+          {/* Operator announcement (content/announcement.txt) — an optional
+              notice bar at the very top of every page: demo disclaimer,
+              maintenance window, incident note. Plain text, non-dismissible:
+              the operator chose to show it. */}
+          {announcement && (
+            <div
+              role="note"
+              className="border-b border-border/60 bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
+            >
+              {announcement}
+            </div>
+          )}
           <header className="px-4 pt-4 sm:px-6 sm:pt-5">
             <Link
               href="/"
