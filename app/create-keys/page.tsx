@@ -68,7 +68,7 @@ export default function CreateKeysPage() {
   useEffect(() => {
     const saved = sessionStorage.getItem('nveil-management-key');
     if (saved) {
-      void load(saved);
+      void load(saved).finally(() => setBooting(false));
     } else {
       setBooting(false);
     }
