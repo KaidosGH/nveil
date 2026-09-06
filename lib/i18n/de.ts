@@ -236,9 +236,9 @@ export const de: Dict = {
     token_required: 'Zum Löschen dieses Secrets wird ein Ersteller-Token benötigt.',
     invalid_token: 'Dieser Verwaltungslink ist ungültig.',
     invalid_url: 'Bitte fügen Sie den vollständigen Link zum Secret ein.',
-    create_key_required: 'Diese Instanz erfordert einen Zugangsschlüssel, um Secrets zu erstellen.',
+    access_key_required: 'Diese Instanz erfordert einen Zugangsschlüssel, um Secrets zu erstellen.',
   },
-  createKeysAdmin: {
+  accessKeysAdmin: {
     unlockTitle: 'Create keys',
     unlockDesc: 'Enter the management key to manage the access keys for this instance.',
     keyLabel: 'Management key',
@@ -247,7 +247,7 @@ export const de: Dict = {
     unreachable: 'Could not reach the server.',
     actionFailed: 'Action failed.',
     noKeys: 'No create keys yet.',
-    newKeyTitle: 'New create key',
+    newKeyTitle: 'New access key',
     newKeyLabel: 'Label (team or purpose)',
     expiresLabel: 'Expires (optional)',
     create: 'Create key',

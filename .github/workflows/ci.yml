@@ -106,12 +106,12 @@ jobs:
           done
           BASE_URL=http://localhost:3201 npm run test:ui
 
-      # Create-key gate e2e: needs its own server started with the gate on
+      # Access-key gate e2e: needs its own server started with the gate on
       # (a throwaway management key guards a test-only key list on the same
-      # scratch database). See tests/create-keys.e2e.mjs.
-      - name: Create-key gate e2e
+      # scratch database). See tests/access-keys.e2e.mjs.
+      - name: Access-key gate e2e
         env:
-          NVEIL_CREATE_KEYS: 'require'
+          NVEIL_ACCESS_KEYS: 'require'
           NVEIL_MANAGEMENT_KEY: ci-test-only-management-key-0123456789abcdef
         run: |
           npx next start -p 3202 -H 0.0.0.0 &
@@ -120,7 +120,7 @@ jobs:
             if [ "$i" = 30 ]; then echo "server did not become healthy" >&2; exit 1; fi
             sleep 1
           done
-          BASE_URL=http://localhost:3202 NVEIL_MANAGEMENT_KEY=ci-test-only-management-key-0123456789abcdef node tests/create-keys.e2e.mjs
+          BASE_URL=http://localhost:3202 NVEIL_MANAGEMENT_KEY=ci-test-only-management-key-0123456789abcdef node tests/access-keys.e2e.mjs
 
   publish-image:
     # Runs only on v* tags, after the full test suite passed.

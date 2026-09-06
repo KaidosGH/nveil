@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { createKeys } from '@/drizzle/schema';
+import { accessKeys } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
-import { generateCreateKey, requireManagement } from '@/lib/create-keys';
+import { generateCreateKey, requireManagement } from '@/lib/access-keys';
 
 export async function GET(request: NextRequest) {
   const gate = await requireManagement(request);
@@ -17,16 +17,16 @@ export async function GET(request: NextRequest) {
   }
   const rows = await db
     .select({
-      id: createKeys.id,
-      label: createKeys.label,
-      prefix: createKeys.keyPrefix,
-      createdAt: createKeys.createdAt,
-      expiresAt: createKeys.expiresAt,
-      lastUsedAt: createKeys.lastUsedAt,
-      revokedAt: createKeys.revokedAt,
+      id: accessKeys.id,
+      label: accessKeys.label,
+      prefix: accessKeys.keyPrefix,
+      createdAt: accessKeys.createdAt,
+      expiresAt: accessKeys.expiresAt,
+      lastUsedAt: accessKeys.lastUsedAt,
+      revokedAt: accessKeys.revokedAt,
     })
-    .from(createKeys)
-    .orderBy(desc(createKeys.createdAt));
+    .from(accessKeys)
+    .orderBy(desc(accessKeys.createdAt));
   return NextResponse.json({ keys: rows });
 }
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   const key = generateCreateKey();
   const id = randomUUID();
-  await db.insert(createKeys).values({
+  await db.insert(accessKeys).values({
     id,
     label: parsed.data.label,
     keyHash: key.hash,

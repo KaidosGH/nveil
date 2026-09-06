@@ -1,7 +1,7 @@
-// E2E check for the create-key gate — requires a server started with
-// NVEIL_CREATE_KEYS=require and NVEIL_MANAGEMENT_KEY (>= 32 chars).
+// E2E check for the access-key gate — requires a server started with
+// NVEIL_ACCESS_KEYS=require and NVEIL_MANAGEMENT_KEY (>= 32 chars).
 // Usage:
-//   BASE_URL=http://localhost:3202 NVEIL_MANAGEMENT_KEY=<key> node tests/create-keys.e2e.mjs
+//   BASE_URL=http://localhost:3202 NVEIL_MANAGEMENT_KEY=<key> node tests/access-keys.e2e.mjs
 // Covers: enforcement without key, management auth, key creation via the
 // management API, header-based creation, verify endpoint + cookie flow,
 // and revocation taking effect immediately.
@@ -35,20 +35,20 @@ async function createSecret(extraHeaders = {}) {
   });
 }
 
-// 1. Without any key: creation is rejected with 403 create_key_required.
+// 1. Without any key: creation is rejected with 403 access_key_required.
 {
   const response = await createSecret();
   assert.equal(response.status, 403);
   const data = await response.json();
-  assert.equal(data.error, 'create_key_required');
+  assert.equal(data.error, 'access_key_required');
   console.log('1. create without key rejected: ok');
 }
 
 // 2. Management API is key-gated: no key and wrong key are rejected.
 {
-  const noKey = await fetch(`${BASE}/api/create-keys`);
+  const noKey = await fetch(`${BASE}/api/access-keys`);
   assert.equal(noKey.status, 401);
-  const wrongKey = await fetch(`${BASE}/api/create-keys`, {
+  const wrongKey = await fetch(`${BASE}/api/access-keys`, {
     headers: { 'x-management-key': 'wrong-wrong-wrong-wrong-wrong' },
   });
   assert.equal(wrongKey.status, 401);
@@ -59,7 +59,7 @@ async function createSecret(extraHeaders = {}) {
 let rawKey = '';
 let keyId = '';
 {
-  const response = await fetch(`${BASE}/api/create-keys`, {
+  const response = await fetch(`${BASE}/api/access-keys`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-management-key': MANAGEMENT_KEY },
     body: JSON.stringify({ label: 'e2e test key' }),
@@ -74,22 +74,22 @@ let keyId = '';
 
 // 4. Valid key authorizes creation (header-based).
 {
-  const response = await createSecret({ 'x-create-key': rawKey });
-  assert.equal(response.status, 201, 'valid create key must authorize creation');
+  const response = await createSecret({ 'x-access-key': rawKey });
+  assert.equal(response.status, 201, 'valid access key must authorize creation');
   console.log('4. header-based creation: ok');
 }
 
 // 5. Verify endpoint moves the key into an httpOnly cookie; cookie-based
 //    creation then works, and scripts get nothing readable.
 {
-  const verify = await fetch(`${BASE}/api/create-keys/verify`, {
+  const verify = await fetch(`${BASE}/api/access-keys/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key: rawKey }),
   });
   assert.equal(verify.status, 200);
   const setCookie = verify.headers.get('set-cookie') ?? '';
-  assert.match(setCookie, /nveil-create-key=/);
+  assert.match(setCookie, /nveil-access-key=/);
   assert.match(setCookie, /HttpOnly/i);
   const cookie = setCookie.split(';')[0];
   const response = await createSecret({ Cookie: cookie });
@@ -99,14 +99,14 @@ let keyId = '';
 
 // 6. Revocation takes effect immediately: header AND cookie holders fail.
 {
-  const revoke = await fetch(`${BASE}/api/create-keys/${keyId}`, {
+  const revoke = await fetch(`${BASE}/api/access-keys/${keyId}`, {
     method: 'DELETE',
     headers: { 'x-management-key': MANAGEMENT_KEY },
   });
   assert.equal(revoke.status, 200);
-  const after = await createSecret({ 'x-create-key': rawKey });
+  const after = await createSecret({ 'x-access-key': rawKey });
   assert.equal(after.status, 403, 'revoked key must no longer authorize creation');
-  const verify = await fetch(`${BASE}/api/create-keys/verify`, {
+  const verify = await fetch(`${BASE}/api/access-keys/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key: rawKey }),
@@ -115,4 +115,4 @@ let keyId = '';
   console.log('6. revocation: ok');
 }
 
-console.log('create-key gate e2e passed');
+console.log('access-key gate e2e passed');

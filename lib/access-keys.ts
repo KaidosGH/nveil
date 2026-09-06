@@ -2,8 +2,8 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { clientIp, rateLimit } from './rate-limit.ts';
 
 /**
- * Optional create-key gate (NVEIL_CREATE_KEYS=require): on managed instances
- * only holders of a valid create key may create secrets. Reads, manage links
+ * Optional access-key gate (NVEIL_ACCESS_KEYS=require): on managed instances
+ * only holders of a valid access key may create secrets. Reads, manage links
  * and abuse reporting are never gated. Keys are 256-bit random values shown
  * once; only their SHA-256 hash is stored. Secrets are NOT linked to keys —
  * the only key metadata is label, prefix and lifecycle timestamps.
@@ -14,11 +14,11 @@ import { clientIp, rateLimit } from './rate-limit.ts';
 
 export const MANAGEMENT_KEY = process.env.NVEIL_MANAGEMENT_KEY ?? '';
 export const MANAGEMENT_ENABLED = MANAGEMENT_KEY.length >= 32;
-export const CREATE_KEYS_REQUIRED = process.env.NVEIL_CREATE_KEYS === 'require';
+export const ACCESS_KEYS_REQUIRED = process.env.NVEIL_ACCESS_KEYS === 'require';
 
-export const CREATE_KEY_COOKIE = 'nveil-create-key';
+export const ACCESS_KEY_COOKIE = 'nveil-access-key';
 /** Hard cap for the cookie lifetime; a key's own expiry shortens it further. */
-export const CREATE_KEY_COOKIE_CAP_S = 60 * 60 * 24 * 30;
+export const ACCESS_KEY_COOKIE_CAP_S = 60 * 60 * 24 * 30;
 
 const RAW_PREFIX = 'nveil_';
 
@@ -40,7 +40,7 @@ export function verifyManagementKey(submitted: string): boolean {
 }
 
 /**
- * Gate shared by the create-keys management endpoints: per-IP limiter
+ * Gate shared by the access-keys management endpoints: per-IP limiter
  * (brute-force blunting; the key itself is unguessable and fails closed),
  * then the key check. Returns what the route should respond with, or
  * { ok: true } when the caller is authorized. Deliberately framework-free
@@ -70,15 +70,15 @@ export function isKeyUsable(row: { revokedAt: Date | null; expiresAt: Date | nul
  * shortened to a key's own expiry when that is sooner.
  */
 export function createKeyCookieMaxAge(expiresAt: Date | null): number {
-  if (!expiresAt) return CREATE_KEY_COOKIE_CAP_S;
+  if (!expiresAt) return ACCESS_KEY_COOKIE_CAP_S;
   const untilExpiry = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
-  return Math.max(60, Math.min(CREATE_KEY_COOKIE_CAP_S, untilExpiry));
+  return Math.max(60, Math.min(ACCESS_KEY_COOKIE_CAP_S, untilExpiry));
 }
 
 /** Full cookie attributes — httpOnly keeps the key away from scripts entirely. */
 export function createKeyCookie(raw: string, maxAgeSeconds: number) {
   return {
-    name: CREATE_KEY_COOKIE,
+    name: ACCESS_KEY_COOKIE,
     value: raw,
     httpOnly: true,
     secure: true,

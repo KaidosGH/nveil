@@ -235,9 +235,9 @@ export const en = {
     token_required: 'A creator token is required to delete this secret.',
     invalid_token: 'This management link is invalid.',
     invalid_url: 'Please paste the full link to the secret.',
-    create_key_required: 'This instance requires an access key to create secrets.',
+    access_key_required: 'This instance requires an access key to create secrets.',
   },
-  createKeysAdmin: {
+  accessKeysAdmin: {
     unlockTitle: 'Create keys',
     unlockDesc: 'Enter the management key to manage the access keys for this instance.',
     keyLabel: 'Management key',
@@ -246,7 +246,7 @@ export const en = {
     unreachable: 'Could not reach the server.',
     actionFailed: 'Action failed.',
     noKeys: 'No create keys yet.',
-    newKeyTitle: 'New create key',
+    newKeyTitle: 'New access key',
     newKeyLabel: 'Label (team or purpose)',
     expiresLabel: 'Expires (optional)',
     create: 'Create key',

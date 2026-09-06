@@ -49,7 +49,7 @@ export function CreateSecretForm() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  // Create-key gate (managed instances): when the server demands an access
+  // Access-key gate (managed instances): when the server demands an access
   // key, the form collects it once, swaps it for an httpOnly cookie via the
   // verify endpoint, and retries — the key itself is never kept in state.
   const [needsKey, setNeedsKey] = useState(false);
@@ -133,10 +133,10 @@ export function CreateSecretForm() {
         }),
       });
       if (response.status === 403) {
-        // Create-key gate: collect the access key once, swap it for an
+        // Access-key gate: collect the access key once, swap it for an
         // httpOnly cookie via the verify endpoint, then retry the creation.
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        if (data?.error === 'create_key_required') {
+        if (data?.error === 'access_key_required') {
           setNeedsKey(true);
           setSubmitting(false);
           return;
@@ -169,7 +169,7 @@ export function CreateSecretForm() {
 
   async function unlockAccessKey() {
     setAccessKeyError(false);
-    const response = await fetch('/api/create-keys/verify', {
+    const response = await fetch('/api/access-keys/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: accessKey.trim() }),

@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db, deleteExpired } from '@/lib/db';
-import { createKeys, secrets } from '@/drizzle/schema';
+import { accessKeys, secrets } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
 import { createSecretSchema } from '@/lib/validation';
 import { clientIp, rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { apiMessage } from '@/lib/i18n-server';
 import { readBodyCapped } from '@/lib/request-body';
 import {
-  CREATE_KEY_COOKIE,
-  CREATE_KEYS_REQUIRED,
+  ACCESS_KEY_COOKIE,
+  ACCESS_KEYS_REQUIRED,
   createKeyCookie,
   createKeyCookieMaxAge,
   isKeyUsable,
   keyHash,
-} from '@/lib/create-keys';
+} from '@/lib/access-keys';
 
 /** JSON body cap: ciphertext max (~137 KB) + envelope/metadata overhead. */
 const BODY_CAP = 300_000;
@@ -33,30 +33,30 @@ export async function POST(request: NextRequest) {
   // regardless of transfer encoding (the proxy 1 MB caps are defense-in-depth).
   await ensureSchema();
 
-  // Create-key gate (managed instances): unauthorized bodies are never read.
+  // Access-key gate (managed instances): unauthorized bodies are never read.
   let keyCookie: ReturnType<typeof createKeyCookie> | null = null;
-  if (CREATE_KEYS_REQUIRED) {
+  if (ACCESS_KEYS_REQUIRED) {
     const presented =
-      request.headers.get('x-create-key') ?? request.cookies.get(CREATE_KEY_COOKIE)?.value ?? '';
+      request.headers.get('x-access-key') ?? request.cookies.get(ACCESS_KEY_COOKIE)?.value ?? '';
     const [row] = presented
       ? await db
           .select()
-          .from(createKeys)
-          .where(and(eq(createKeys.keyHash, keyHash(presented)), isNull(createKeys.revokedAt)))
+          .from(accessKeys)
+          .where(and(eq(accessKeys.keyHash, keyHash(presented)), isNull(accessKeys.revokedAt)))
       : [];
     if (!row || !isKeyUsable(row)) {
       const response = NextResponse.json(
-        { error: 'create_key_required', message: apiMessage(request, 'create_key_required') },
+        { error: 'access_key_required', message: apiMessage(request, 'access_key_required') },
         { status: 403 },
       );
       // A stale cookie would trap the holder in 403s — clear it.
       if (presented) {
-        response.cookies.set({ name: CREATE_KEY_COOKIE, value: '', httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 0 });
+        response.cookies.set({ name: ACCESS_KEY_COOKIE, value: '', httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 0 });
       }
       return response;
     }
     keyCookie = createKeyCookie(presented, createKeyCookieMaxAge(row.expiresAt));
-    await db.update(createKeys).set({ lastUsedAt: new Date() }).where(eq(createKeys.id, row.id));
+    await db.update(accessKeys).set({ lastUsedAt: new Date() }).where(eq(accessKeys.id, row.id));
   }
 
   const raw = await readBodyCapped(request, BODY_CAP);

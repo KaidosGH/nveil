@@ -18,7 +18,7 @@ write a useful report:
   in the browser; the decryption key lives in the URL fragment and is never
   sent to the server.
 - Burn-after-read consumption is a single atomic server-side delete.
-- Optional create-key gate (managed instances): creation requires a 256-bit
+- Optional access-key gate (managed instances): creation requires a 256-bit
   access key; only its SHA-256 hash, a label and lifecycle timestamps are
   stored. Secrets are never linked to keys, and the key is held in an
   httpOnly cookie (never readable by scripts).

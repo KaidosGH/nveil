@@ -19,7 +19,7 @@ type CreateKey = {
 };
 
 /**
- * Operator page for the create-key gate (NVEIL_CREATE_KEYS=require):
+ * Operator page for the access-key gate (NVEIL_ACCESS_KEYS=require):
  * manage the access keys that unlock secret creation on this instance.
  * The management key is entered once per session (sessionStorage, same
  * pattern as the abuse queue) and sent as a header. New keys are shown
@@ -27,7 +27,7 @@ type CreateKey = {
  */
 export default function CreateKeysPage() {
   const { t } = useI18n();
-  const ta = t.createKeysAdmin;
+  const ta = t.accessKeysAdmin;
   const [keyInput, setKeyInput] = useState('');
   const [storedKey, setStoredKey] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
@@ -45,7 +45,7 @@ export default function CreateKeysPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/create-keys', { headers: { 'x-management-key': key } });
+        const response = await fetch('/api/access-keys', { headers: { 'x-management-key': key } });
         if (!response.ok) {
           setError(response.status === 401 ? ta.invalidKey : ta.unreachable);
           setStoredKey(null);
@@ -80,7 +80,7 @@ export default function CreateKeysPage() {
     setCreating(true);
     setError(null);
     try {
-      const response = await fetch('/api/create-keys', {
+      const response = await fetch('/api/access-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-management-key': storedKey },
         body: JSON.stringify({
@@ -108,7 +108,7 @@ export default function CreateKeysPage() {
     if (!storedKey) return;
     setBusyId(id);
     try {
-      const response = await fetch(`/api/create-keys/${id}`, {
+      const response = await fetch(`/api/access-keys/${id}`, {
         method: 'DELETE',
         headers: { 'x-management-key': storedKey },
       });

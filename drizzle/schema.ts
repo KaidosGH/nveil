@@ -32,10 +32,10 @@ export const abuseReports = pgTable('abuse_reports', {
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
-// Optional create-key gate (NVEIL_CREATE_KEYS=require): hashed keys that
+// Optional access-key gate (NVEIL_ACCESS_KEYS=require): hashed keys that
 // gate secret creation on managed instances. Raw keys are shown once and
 // never stored; secrets are NOT linked to keys (privacy posture).
-export const createKeys = pgTable('create_keys', {
+export const accessKeys = pgTable('access_keys', {
   id: text('id').primaryKey(),
   label: text('label').notNull(),
   keyHash: text('key_hash').notNull(),

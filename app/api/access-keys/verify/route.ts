@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { createKeys } from '@/drizzle/schema';
+import { accessKeys } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
 import {
-  CREATE_KEY_COOKIE,
-  CREATE_KEYS_REQUIRED,
+  ACCESS_KEY_COOKIE,
+  ACCESS_KEYS_REQUIRED,
   createKeyCookie,
   createKeyCookieMaxAge,
   isKeyUsable,
   keyHash,
-} from '@/lib/create-keys';
+} from '@/lib/access-keys';
 import { clientIp, rateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 /**
  * One-time key entry for the create page: validates a pasted create key and
  * moves it into an httpOnly cookie, so scripts on the page never handle the
- * credential again. Only meaningful when the create-key gate is on.
+ * credential again. Only meaningful when the access-key gate is on.
  */
 export async function POST(request: NextRequest) {
-  if (!CREATE_KEYS_REQUIRED) {
+  if (!ACCESS_KEYS_REQUIRED) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
   const limit = rateLimit(`ckv:${await clientIp(request.headers)}`, 10, 60 * 1000);
@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
 
   const [row] = await db
     .select()
-    .from(createKeys)
-    .where(and(eq(createKeys.keyHash, keyHash(parsed.data.key)), isNull(createKeys.revokedAt)));
+    .from(accessKeys)
+    .where(and(eq(accessKeys.keyHash, keyHash(parsed.data.key)), isNull(accessKeys.revokedAt)));
   if (!row || !isKeyUsable(row)) {
     return NextResponse.json({ error: 'invalid_key' }, { status: 401 });
   }
 
-  await db.update(createKeys).set({ lastUsedAt: new Date() }).where(eq(createKeys.id, row.id));
+  await db.update(accessKeys).set({ lastUsedAt: new Date() }).where(eq(accessKeys.id, row.id));
   const response = NextResponse.json({ ok: true });
   response.cookies.set(createKeyCookie(parsed.data.key, createKeyCookieMaxAge(row.expiresAt)));
   return response;

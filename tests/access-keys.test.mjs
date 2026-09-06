@@ -1,12 +1,12 @@
-// Self-check for lib/create-keys.ts: key generation/hashing, management-key
+// Self-check for lib/access-keys.ts: key generation/hashing, management-key
 // verification (constant-time compare against the configured env value) and
 // the cookie lifetime clamp (cookie must never outlive its key's expiry).
-// Run: node tests/create-keys.test.mjs  (part of `npm run check`)
+// Run: node tests/access-keys.test.mjs  (part of `npm run check`)
 import assert from 'node:assert/strict';
 
 process.env.NVEIL_MANAGEMENT_KEY = 'test-management-key-0123456789abcdef';
 const { generateCreateKey, keyHash, verifyManagementKey, isKeyUsable, createKeyCookieMaxAge } =
-  await import('../lib/create-keys.ts');
+  await import('../lib/access-keys.ts');
 
 const DAY = 86_400_000;
 
@@ -35,4 +35,4 @@ assert.ok(Math.abs(createKeyCookieMaxAge(new Date(now + 10 * DAY)) - 10 * DAY / 
 assert.ok(Math.abs(createKeyCookieMaxAge(new Date(now + 3600_000)) - 3600) < 5);
 assert.equal(createKeyCookieMaxAge(new Date(now - 1000)), 60, 'already-expired key still gets a minimal lifetime');
 
-console.log('create-keys self-check passed');
+console.log('access-keys self-check passed');
