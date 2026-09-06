@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -10,6 +12,17 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export default function proxy(request: NextRequest) {
   const isDev = process.env.NODE_ENV === 'development';
+
+  // /managed is an operator page: without content/managed.(html|txt) it does
+  // not exist. Decided here because notFound() downstream cannot change the
+  // status once the force-dynamic layout shell has streamed (it renders the
+  // not-found UI but with status 200).
+  if (request.nextUrl.pathname.replace(/\/+$/, '') === '/managed') {
+    const content = join(process.cwd(), 'content');
+    if (!existsSync(join(content, 'managed.html')) && !existsSync(join(content, 'managed.txt'))) {
+      return new NextResponse(null, { status: 404 });
+    }
+  }
 
   let scriptSrc = `'self' 'unsafe-inline' 'unsafe-eval'`;
   if (!isDev) {

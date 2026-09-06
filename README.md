@@ -103,8 +103,7 @@ through to the app container).
 | `NVEIL_REPORT_ABUSE` | `false` | Enables the abuse dialog and the operator queue |
 | `NVEIL_REPORT_ABUSE_KEY` | — | Operator key for the queue (≥ 32 chars; required when abuse reporting is on) |
 | `NVEIL_ABUSE_EMAIL` | — | Optional dedicated abuse contact in `security.txt` |
-| `NVEIL_SUPPORT_URL` | — | Optional "Support this project" footer link (shown only when set) |
-| `NVEIL_MANAGED_URL` | — | Optional "Managed instance" footer CTA (shown only when set) |
+| `NVEIL_SUPPORT_LINK` | `true` | Shows the "Support this project" and GitHub footer links (`false` hides both, e.g. for white-labeled instances) |
 | `RATE_LIMIT_CREATE_PER_HOUR` | `30` | Secret creation limit per client IP |
 | `NVEIL_CLOUDFLARE_RANGES_URL` | built-in list | Refresh source for the Cloudflare edge IPs used to validate `CF-Connecting-IP` |
 | `RATE_LIMIT_VIEW_PER_MINUTE` | `120` | View limit per client IP |
@@ -116,7 +115,8 @@ through to the app container).
 
 No legal text ships with the software: the documents describe your identity
 and your processing, which the software cannot know. Instead, four
-**fill-in templates** live in `content.example/` — each a skeleton of
+legal **fill-in templates** live in `content.example/` — plus an optional
+operator page for commercial offers (`managed`, see below) — each a skeleton of — each a skeleton of
 required *fields* with comments marking which jurisdictions expect which
 section (EU: §5 DDG imprint, GDPR Art. 13 notice; US: CalOPPA and the
 state privacy laws; DSA terms for public instances). Replace every
@@ -128,6 +128,7 @@ content/privacy.html               # or privacy.txt   — expected on essentiall
 content/imprint.html               # or imprint.txt   — EU operators (§5 DDG); footer label: "Imprint" (de: "Impressum")
 content/cookies_and_tracking.html  # optional standalone cookie disclosure — GDPR prefers it inside the privacy notice
 content/tos.html                   # optional terms of service — DSA Art. 14 for public instances, US convention
+content/managed.html               # optional operator page (e.g. a managed-hosting offer) — not legal content
 ```
 
 Only the pages whose files exist are served — the footer links appear per
@@ -145,6 +146,15 @@ gone — no restart needed (same live behavior as the legal pages). It
 renders as plain text, centered above the page content. Typical uses: a
 demo disclaimer ("This is a demo instance — host your own for real
 use"), a maintenance window, or an incident note. Keep it short.
+
+### Managed-instance page (optional)
+
+Operators running a commercial offering can add `content/managed.html`
+(templates in `content.example/`): when the file exists and `NVEIL_PUBLIC`
+is set, the footer shows a "Managed instance" link to that page. Without
+the file neither the link nor the page exists. On your own self-hosted
+instance you can brand everything freely — the "Support this project" and
+GitHub footer links can be hidden with `NVEIL_SUPPORT_LINK=false`.
 
 ## API
 

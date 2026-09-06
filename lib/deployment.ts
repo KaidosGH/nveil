@@ -49,13 +49,12 @@ export const CONTACT_EMAIL = process.env.NVEIL_CONTACT_EMAIL ?? '';
 export const ABUSE_EMAIL = process.env.NVEIL_ABUSE_EMAIL ?? '';
 
 /**
- * Optional operator footer links (plain hyperlinks only — widgets/iframes
- * would violate the no-third-party-requests posture). Set them on your own
- * instance (e.g. donation or commercial-CTA links); self-hosted deployments
- * show nothing unless they configure them.
+ * Support links ("Support this project" + GitHub icon in the footer) are on
+ * by default — they are how the project sustains itself — and can be hidden
+ * by an operator (e.g. on a white-labeled managed tenant):
+ * NVEIL_SUPPORT_LINK=false
  */
-export const SUPPORT_URL = process.env.NVEIL_SUPPORT_URL ?? '';
-export const MANAGED_URL = process.env.NVEIL_MANAGED_URL ?? '';
+export const SUPPORT_LINK = process.env.NVEIL_SUPPORT_LINK !== 'false';
 
 /**
  * Default UI language until the visitor picks one with the footer select

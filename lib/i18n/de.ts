@@ -16,7 +16,6 @@ export const de: Dict = {
     no: 'Nein',
     skipToContent: 'Zum Inhalt springen',
     supportProject: 'Projekt unterstützen',
-    managedInstance: 'Verwaltete Instanz für Ihr Unternehmen',
     pageNotFound: 'Seite nicht gefunden',
     pageNotFoundDesc: 'Diese Adresse existiert nicht. Der Link ist möglicherweise unvollständig oder falsch eingegeben.',
     unexpectedError: 'Etwas ist schiefgelaufen',
