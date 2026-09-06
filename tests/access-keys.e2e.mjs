@@ -91,10 +91,33 @@ let keyId = '';
   const setCookie = verify.headers.get('set-cookie') ?? '';
   assert.match(setCookie, /nveil-access-key=/);
   assert.match(setCookie, /HttpOnly/i);
-  const cookie = setCookie.split(';')[0];
+  let cookie = setCookie.split(';')[0];
   const response = await createSecret({ Cookie: cookie });
   assert.equal(response.status, 201, 'cookie-based creation must work');
   console.log('5. cookie flow: ok');
+
+  // 5b. Session info: the cookie holder learns prefix + label (no secret
+  //     material), and forgetting clears the cookie server-side.
+  const session = await fetch(`${BASE}/api/access-keys/session`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(session.status, 200);
+  const info = await session.json();
+  assert.equal(info.prefix, rawKey.slice(0, 12));
+  assert.equal(info.label, 'e2e test key');
+  const forget = await fetch(`${BASE}/api/access-keys/session`, {
+    method: 'DELETE',
+    headers: { Cookie: cookie },
+  });
+  assert.equal(forget.status, 204);
+  const reverify = await fetch(`${BASE}/api/access-keys/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: rawKey }),
+  });
+  assert.equal(reverify.status, 200);
+  cookie = reverify.headers.get('set-cookie').split(';')[0];
+  console.log('5b. session info + forget: ok');
 }
 
 // 6. Revocation takes effect immediately: header AND cookie holders fail.

@@ -88,6 +88,10 @@ export const de: Dict = {
     accessKeyDesc: 'Diese Instanz erfordert einen Zugangsschlüssel, um Secrets zu erstellen. Er wird in diesem Browser gemerkt.',
     accessKeyUnlock: 'Entsperren',
     accessKeyInvalid: 'Ungültiger oder abgelaufener Zugangsschlüssel.',
+    accessKeyActive: 'Verwendeter Zugangsschlüssel',
+    accessKeyActiveDesc: 'Dieser Browser ist berechtigt, auf dieser Instanz Secrets zu erstellen.',
+    accessKeyReplace: 'Schlüssel ersetzen',
+    accessKeyForget: 'Schlüssel in diesem Browser vergessen',
   },
   result: {
     title: 'Secret-Link',

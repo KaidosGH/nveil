@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -55,6 +55,11 @@ export function CreateSecretForm() {
   const [needsKey, setNeedsKey] = useState(false);
   const [accessKey, setAccessKey] = useState('');
   const [accessKeyError, setAccessKeyError] = useState(false);
+  // Which key is active in this browser (display prefix + label only — the
+  // httpOnly cookie is unreadable by design). Surfaced in the Advanced
+  // section together with replace/forget actions.
+  const [activeKeyInfo, setActiveKeyInfo] = useState<{ prefix: string; label: string } | null>(null);
+  const [showReplace, setShowReplace] = useState(false);
 
   // Validation messages are locale-dependent, so the schema is built per render.
   const formSchema = useMemo(
@@ -75,6 +80,21 @@ export function CreateSecretForm() {
     resolver: zodResolver(formSchema),
     defaultValues: { content: '', burnAfterRead: true },
   });
+
+  // Which access key is active in this browser, if any: surfaced in Advanced
+  // (404 = gate off or no key on this browser → nothing to show).
+  const refreshActiveKey = useCallback(async () => {
+    try {
+      const response = await fetch('/api/access-keys/session');
+      setActiveKeyInfo(response.ok ? ((await response.json()) as { prefix: string; label: string }) : null);
+    } catch {
+      setActiveKeyInfo(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshActiveKey();
+  }, [refreshActiveKey]);
 
   /**
    * The card is formless (no <form> — see the comment at the layout), so
@@ -167,8 +187,8 @@ export function CreateSecretForm() {
     }
   }
 
-  async function unlockAccessKey() {
-    setAccessKeyError(false);
+  /** Validates the pasted key and moves it into the httpOnly cookie. */
+  async function verifyAccessKey(): Promise<boolean> {
     const response = await fetch('/api/access-keys/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -176,12 +196,31 @@ export function CreateSecretForm() {
     });
     if (!response.ok) {
       setAccessKeyError(true);
-      return;
+      return false;
     }
-    // The verify endpoint set the httpOnly cookie — retry, now authorized.
-    setNeedsKey(false);
+    // Refresh the Advanced display of the active key.
     setAccessKey('');
-    await submit();
+    void refreshActiveKey();
+    return true;
+  }
+
+  // 403-retry path: verify, then re-run the creation.
+  async function unlockAccessKey() {
+    if (await verifyAccessKey()) {
+      setNeedsKey(false);
+      await submit();
+    }
+  }
+
+  // Advanced replace path: verify only — no creation.
+  async function replaceAccessKey() {
+    if (await verifyAccessKey()) setShowReplace(false);
+  }
+
+  async function forgetAccessKey() {
+    await fetch('/api/access-keys/session', { method: 'DELETE' }).catch(() => {});
+    setActiveKeyInfo(null);
+    setShowReplace(false);
   }
 
   if (result) {
@@ -264,6 +303,50 @@ export function CreateSecretForm() {
               {t.create.advanced}
             </summary>
             <div className="mt-4 space-y-3">
+              {activeKeyInfo && (
+                <div className="space-y-2 rounded-md border border-border/60 p-3">
+                  <Label>{t.create.accessKeyActive}</Label>
+                  <p className="text-xs text-muted-foreground">{t.create.accessKeyActiveDesc}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="rounded bg-muted px-2 py-1 font-mono text-xs">
+                      {activeKeyInfo.prefix}…
+                    </code>
+                    <span className="text-xs text-muted-foreground">{activeKeyInfo.label}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowReplace((v) => !v)}
+                    >
+                      {t.create.accessKeyReplace}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => void forgetAccessKey()}>
+                      {t.create.accessKeyForget}
+                    </Button>
+                  </div>
+                  {showReplace && (
+                    <div className="space-y-2">
+                      <Label htmlFor="replace-access-key">{t.create.accessKeyLabel}</Label>
+                      <PassphraseInput
+                        id="replace-access-key"
+                        name="replace_access_key"
+                        value={accessKey}
+                        onChange={(e) => setAccessKey(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && accessKey.trim()) void replaceAccessKey();
+                        }}
+                      />
+                      {accessKeyError && (
+                        <p role="alert" className="text-sm text-destructive-foreground">
+                          {t.create.accessKeyInvalid}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>{t.create.keyDeliveryLabel}</Label>
                 <div role="radiogroup" aria-label={t.create.keyDeliveryLabel} className="flex flex-wrap gap-1.5">

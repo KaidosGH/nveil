@@ -89,6 +89,10 @@ export const en = {
     accessKeyDesc: 'This instance requires an access key to create secrets. It will be remembered in this browser.',
     accessKeyUnlock: 'Unlock',
     accessKeyInvalid: 'Invalid or expired access key.',
+    accessKeyActive: 'Access key in use',
+    accessKeyActiveDesc: 'This browser is authorized to create secrets on this instance.',
+    accessKeyReplace: 'Replace key',
+    accessKeyForget: 'Forget key on this browser',
   },
   result: {
     title: 'Secret link',
