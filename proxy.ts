@@ -14,7 +14,10 @@ export default function proxy(request: NextRequest) {
   let scriptSrc = `'self' 'unsafe-inline' 'unsafe-eval'`;
   if (!isDev) {
     const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-    scriptSrc = `'self' 'nonce-${nonce}' 'strict-dynamic'`;
+    // No 'self' here: under 'strict-dynamic' (CSP3) host sources are ignored,
+    // so it only earns a console warning on every page load. The nonce is the
+    // sole trust root; script propagation covers the static chunks.
+    scriptSrc = `'nonce-${nonce}' 'strict-dynamic'`;
     request.headers.set('x-nonce', nonce);
   }
 
