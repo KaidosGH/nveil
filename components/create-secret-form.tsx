@@ -49,6 +49,12 @@ export function CreateSecretForm() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  // Create-key gate (managed instances): when the server demands an access
+  // key, the form collects it once, swaps it for an httpOnly cookie via the
+  // verify endpoint, and retries — the key itself is never kept in state.
+  const [needsKey, setNeedsKey] = useState(false);
+  const [accessKey, setAccessKey] = useState('');
+  const [accessKeyError, setAccessKeyError] = useState(false);
 
   // Validation messages are locale-dependent, so the schema is built per render.
   const formSchema = useMemo(
@@ -126,6 +132,16 @@ export function CreateSecretForm() {
           ...passwordEnvelope,
         }),
       });
+      if (response.status === 403) {
+        // Create-key gate: collect the access key once, swap it for an
+        // httpOnly cookie via the verify endpoint, then retry the creation.
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (data?.error === 'create_key_required') {
+          setNeedsKey(true);
+          setSubmitting(false);
+          return;
+        }
+      }
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.message ?? t.create.errorRejected);
@@ -149,6 +165,23 @@ export function CreateSecretForm() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function unlockAccessKey() {
+    setAccessKeyError(false);
+    const response = await fetch('/api/create-keys/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: accessKey.trim() }),
+    });
+    if (!response.ok) {
+      setAccessKeyError(true);
+      return;
+    }
+    // The verify endpoint set the httpOnly cookie — retry, now authorized.
+    setNeedsKey(false);
+    setAccessKey('');
+    await submit();
   }
 
   if (result) {
@@ -305,6 +338,33 @@ export function CreateSecretForm() {
             <p role="alert" className="flex items-center gap-2 text-sm text-destructive-foreground">
               <TriangleAlert aria-hidden className="size-4" /> {serverError}
             </p>
+          )}
+
+          {needsKey && (
+            <div className="space-y-3 rounded-md border border-border/60 p-3">
+              <div className="space-y-2">
+                <Label htmlFor="instance-access-key">{t.create.accessKeyLabel}</Label>
+                <PassphraseInput
+                  id="instance-access-key"
+                  name="instance_access_key"
+                  value={accessKey}
+                  onChange={(e) => setAccessKey(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && accessKey.trim()) void unlockAccessKey();
+                  }}
+                  autoFocus
+                />
+                {accessKeyError && (
+                  <p role="alert" className="text-sm text-destructive-foreground">
+                    {t.create.accessKeyInvalid}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">{t.create.accessKeyDesc}</p>
+              </div>
+              <Button type="button" variant="outline" className="w-full" onClick={() => void unlockAccessKey()}>
+                {t.create.accessKeyUnlock}
+              </Button>
+            </div>
           )}
 
           <Button

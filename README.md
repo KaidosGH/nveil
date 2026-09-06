@@ -6,7 +6,7 @@ Self-hosted, zero-knowledge ephemeral secrets sharing. Share passwords, API keys
   <img src="docs/screenshot-landing.png" alt="nveil landing page — hero, demo banner and the Ribbon Field background" width="800">
 </p>
 
-The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookie is a functional one storing your language choice.
+The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookie is a functional one storing your language choice (managed instances with the create-key gate add an httpOnly cookie holding the instance access key).
 
 **Try it live:** a public demo runs at [demo.nveil.app](https://demo.nveil.app) — the same software you would host. By zero-knowledge design it cannot read the secrets shared through it (keys never leave the browser), but it is still a demo: secrets there are wiped regularly, so host your own for real use (see [Deployment](#deployment-docker)).
 
@@ -104,6 +104,8 @@ through to the app container).
 | `NVEIL_REPORT_ABUSE_KEY` | — | Operator key for the queue (≥ 32 chars; required when abuse reporting is on) |
 | `NVEIL_ABUSE_EMAIL` | — | Optional dedicated abuse contact in `security.txt` |
 | `NVEIL_SUPPORT_LINK` | `true` | Shows the "Support this project" and GitHub footer links (`false` hides both, e.g. for white-labeled instances) |
+| `NVEIL_CREATE_KEYS` | off | `require` gates secret creation behind access keys managed in `/create-keys` (reads stay open) |
+| `NVEIL_MANAGEMENT_KEY` | — | Operator key for the create-keys UI (≥ 32 chars; required when the gate is on) |
 | `RATE_LIMIT_CREATE_PER_HOUR` | `30` | Secret creation limit per client IP |
 | `NVEIL_CLOUDFLARE_RANGES_URL` | built-in list | Refresh source for the Cloudflare edge IPs used to validate `CF-Connecting-IP` |
 | `RATE_LIMIT_VIEW_PER_MINUTE` | `120` | View limit per client IP |

@@ -1,0 +1,118 @@
+// E2E check for the create-key gate — requires a server started with
+// NVEIL_CREATE_KEYS=require and NVEIL_MANAGEMENT_KEY (>= 32 chars).
+// Usage:
+//   BASE_URL=http://localhost:3202 NVEIL_MANAGEMENT_KEY=<key> node tests/create-keys.e2e.mjs
+// Covers: enforcement without key, management auth, key creation via the
+// management API, header-based creation, verify endpoint + cookie flow,
+// and revocation taking effect immediately.
+import assert from 'node:assert/strict';
+import {
+  encrypt,
+  generateCreatorToken,
+  generateKey,
+  keyChecksum,
+  tokenHash,
+} from '../lib/crypto.ts';
+
+const BASE = process.env.BASE_URL ?? 'http://localhost:3202';
+const MANAGEMENT_KEY = process.env.NVEIL_MANAGEMENT_KEY;
+assert.ok(MANAGEMENT_KEY && MANAGEMENT_KEY.length >= 32, 'NVEIL_MANAGEMENT_KEY must be set');
+
+async function createSecret(extraHeaders = {}) {
+  const { key, keyString } = await generateKey();
+  const { ciphertext, iv } = await encrypt(key, 'gated test');
+  return fetch(`${BASE}/api/secrets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    body: JSON.stringify({
+      ciphertext,
+      iv,
+      keyChecksum: await keyChecksum(keyString),
+      creatorTokenHash: await tokenHash(generateCreatorToken()),
+      burnAfterRead: true,
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    }),
+  });
+}
+
+// 1. Without any key: creation is rejected with 403 create_key_required.
+{
+  const response = await createSecret();
+  assert.equal(response.status, 403);
+  const data = await response.json();
+  assert.equal(data.error, 'create_key_required');
+  console.log('1. create without key rejected: ok');
+}
+
+// 2. Management API is key-gated: no key and wrong key are rejected.
+{
+  const noKey = await fetch(`${BASE}/api/create-keys`);
+  assert.equal(noKey.status, 401);
+  const wrongKey = await fetch(`${BASE}/api/create-keys`, {
+    headers: { 'x-management-key': 'wrong-wrong-wrong-wrong-wrong' },
+  });
+  assert.equal(wrongKey.status, 401);
+  console.log('2. management auth: ok');
+}
+
+// 3. Management key creates a key — raw value returned exactly once.
+let rawKey = '';
+let keyId = '';
+{
+  const response = await fetch(`${BASE}/api/create-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-management-key': MANAGEMENT_KEY },
+    body: JSON.stringify({ label: 'e2e test key' }),
+  });
+  assert.equal(response.status, 201);
+  const data = await response.json();
+  rawKey = data.key;
+  keyId = data.id;
+  assert.ok(rawKey.startsWith('nveil_'), 'raw key carries the recognizable prefix');
+  console.log('3. management key creation: ok');
+}
+
+// 4. Valid key authorizes creation (header-based).
+{
+  const response = await createSecret({ 'x-create-key': rawKey });
+  assert.equal(response.status, 201, 'valid create key must authorize creation');
+  console.log('4. header-based creation: ok');
+}
+
+// 5. Verify endpoint moves the key into an httpOnly cookie; cookie-based
+//    creation then works, and scripts get nothing readable.
+{
+  const verify = await fetch(`${BASE}/api/create-keys/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: rawKey }),
+  });
+  assert.equal(verify.status, 200);
+  const setCookie = verify.headers.get('set-cookie') ?? '';
+  assert.match(setCookie, /nveil-create-key=/);
+  assert.match(setCookie, /HttpOnly/i);
+  const cookie = setCookie.split(';')[0];
+  const response = await createSecret({ Cookie: cookie });
+  assert.equal(response.status, 201, 'cookie-based creation must work');
+  console.log('5. cookie flow: ok');
+}
+
+// 6. Revocation takes effect immediately: header AND cookie holders fail.
+{
+  const revoke = await fetch(`${BASE}/api/create-keys/${keyId}`, {
+    method: 'DELETE',
+    headers: { 'x-management-key': MANAGEMENT_KEY },
+  });
+  assert.equal(revoke.status, 200);
+  const after = await createSecret({ 'x-create-key': rawKey });
+  assert.equal(after.status, 403, 'revoked key must no longer authorize creation');
+  const verify = await fetch(`${BASE}/api/create-keys/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: rawKey }),
+  });
+  assert.equal(verify.status, 401);
+  console.log('6. revocation: ok');
+}
+
+console.log('create-key gate e2e passed');

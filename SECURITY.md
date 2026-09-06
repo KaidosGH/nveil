@@ -18,6 +18,10 @@ write a useful report:
   in the browser; the decryption key lives in the URL fragment and is never
   sent to the server.
 - Burn-after-read consumption is a single atomic server-side delete.
+- Optional create-key gate (managed instances): creation requires a 256-bit
+  access key; only its SHA-256 hash, a label and lifecycle timestamps are
+  stored. Secrets are never linked to keys, and the key is held in an
+  httpOnly cookie (never readable by scripts).
 - Password-protected secrets never send the password; only a PBKDF2-wrapped
   content key envelope is stored.
 - The threat model assumes TLS and exactly one trusted reverse proxy in front

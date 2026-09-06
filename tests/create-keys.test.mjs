@@ -1,0 +1,38 @@
+// Self-check for lib/create-keys.ts: key generation/hashing, management-key
+// verification (constant-time compare against the configured env value) and
+// the cookie lifetime clamp (cookie must never outlive its key's expiry).
+// Run: node tests/create-keys.test.mjs  (part of `npm run check`)
+import assert from 'node:assert/strict';
+
+process.env.NVEIL_MANAGEMENT_KEY = 'test-management-key-0123456789abcdef';
+const { generateCreateKey, keyHash, verifyManagementKey, isKeyUsable, createKeyCookieMaxAge } =
+  await import('../lib/create-keys.ts');
+
+const DAY = 86_400_000;
+
+// Key generation: raw keys carry the recognizable prefix, hashes are stable.
+const { raw, hash, prefix } = generateCreateKey();
+assert.ok(raw.startsWith('nveil_'), 'raw key must carry the prefix');
+assert.equal(raw.length, 6 + 43, 'raw key = prefix + 32 bytes base64url');
+assert.equal(hash, keyHash(raw), 'hash must match the raw key');
+assert.ok(prefix.startsWith('nveil_') && prefix.length <= 14);
+
+// Management key: correct value passes, wrong/empty values fail.
+assert.equal(verifyManagementKey(process.env.NVEIL_MANAGEMENT_KEY), true);
+assert.equal(verifyManagementKey('wrong-key'), false);
+assert.equal(verifyManagementKey(''), false);
+
+// Usability: revocation and expiry are both honored.
+const now = Date.now();
+assert.equal(isKeyUsable({ revokedAt: null, expiresAt: null }), true);
+assert.equal(isKeyUsable({ revokedAt: new Date(now - 1000), expiresAt: null }), false);
+assert.equal(isKeyUsable({ revokedAt: null, expiresAt: new Date(now - 1000) }), false);
+assert.equal(isKeyUsable({ revokedAt: null, expiresAt: new Date(now + DAY) }), true);
+
+// Cookie lifetime: capped at 30 days, shortened to a key's expiry, never 0.
+assert.equal(createKeyCookieMaxAge(null), 2_592_000);
+assert.ok(Math.abs(createKeyCookieMaxAge(new Date(now + 10 * DAY)) - 10 * DAY / 1000) < 5);
+assert.ok(Math.abs(createKeyCookieMaxAge(new Date(now + 3600_000)) - 3600) < 5);
+assert.equal(createKeyCookieMaxAge(new Date(now - 1000)), 60, 'already-expired key still gets a minimal lifetime');
+
+console.log('create-keys self-check passed');

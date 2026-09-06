@@ -44,4 +44,14 @@ ALTER TABLE secrets ADD COLUMN IF NOT EXISTS has_password boolean DEFAULT false 
 ALTER TABLE secrets ADD COLUMN IF NOT EXISTS wrapped_key text;
 ALTER TABLE secrets ADD COLUMN IF NOT EXISTS wrap_iv text;
 ALTER TABLE secrets ADD COLUMN IF NOT EXISTS wrap_salt text;
-ALTER TABLE abuse_reports ADD COLUMN IF NOT EXISTS witness_verified boolean DEFAULT false NOT NULL;`;
+ALTER TABLE abuse_reports ADD COLUMN IF NOT EXISTS witness_verified boolean DEFAULT false NOT NULL;
+CREATE TABLE IF NOT EXISTS create_keys (
+    id text PRIMARY KEY,
+    label text NOT NULL,
+    key_hash text NOT NULL,
+    key_prefix text NOT NULL,
+    expires_at timestamptz,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    last_used_at timestamptz,
+    revoked_at timestamptz
+);`;

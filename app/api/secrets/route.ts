@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db, deleteExpired } from '@/lib/db';
+import { createKeys, secrets } from '@/drizzle/schema';
 import { ensureSchema } from '@/lib/db-init';
-import { secrets } from '@/drizzle/schema';
 import { createSecretSchema } from '@/lib/validation';
 import { clientIp, rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { apiMessage } from '@/lib/i18n-server';
 import { readBodyCapped } from '@/lib/request-body';
+import {
+  CREATE_KEY_COOKIE,
+  CREATE_KEYS_REQUIRED,
+  createKeyCookie,
+  createKeyCookieMaxAge,
+  isKeyUsable,
+  keyHash,
+} from '@/lib/create-keys';
 
 /** JSON body cap: ciphertext max (~137 KB) + envelope/metadata overhead. */
 const BODY_CAP = 300_000;
@@ -22,6 +31,34 @@ export async function POST(request: NextRequest) {
   // Hard byte cap on the actually-read body: Content-Length is client-supplied
   // and absent on chunked bodies, so only counting what we read bounds memory
   // regardless of transfer encoding (the proxy 1 MB caps are defense-in-depth).
+  await ensureSchema();
+
+  // Create-key gate (managed instances): unauthorized bodies are never read.
+  let keyCookie: ReturnType<typeof createKeyCookie> | null = null;
+  if (CREATE_KEYS_REQUIRED) {
+    const presented =
+      request.headers.get('x-create-key') ?? request.cookies.get(CREATE_KEY_COOKIE)?.value ?? '';
+    const [row] = presented
+      ? await db
+          .select()
+          .from(createKeys)
+          .where(and(eq(createKeys.keyHash, keyHash(presented)), isNull(createKeys.revokedAt)))
+      : [];
+    if (!row || !isKeyUsable(row)) {
+      const response = NextResponse.json(
+        { error: 'create_key_required', message: apiMessage(request, 'create_key_required') },
+        { status: 403 },
+      );
+      // A stale cookie would trap the holder in 403s — clear it.
+      if (presented) {
+        response.cookies.set({ name: CREATE_KEY_COOKIE, value: '', httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 0 });
+      }
+      return response;
+    }
+    keyCookie = createKeyCookie(presented, createKeyCookieMaxAge(row.expiresAt));
+    await db.update(createKeys).set({ lastUsedAt: new Date() }).where(eq(createKeys.id, row.id));
+  }
+
   const raw = await readBodyCapped(request, BODY_CAP);
   if (raw === null) {
     return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
@@ -39,12 +76,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  await ensureSchema();
   // Lazy cleanup piggybacks on traffic instead of a cron.
   await deleteExpired();
 
   const id = crypto.randomUUID();
   await db.insert(secrets).values({ id, ...parsed.data });
 
-  return NextResponse.json({ id }, { status: 201 });
+  const response = NextResponse.json({ id }, { status: 201 });
+  // Sliding cookie: a successful creation renews the holder's browser
+  // credential (still capped by the key's own expiry).
+  if (keyCookie) response.cookies.set(keyCookie);
+  return response;
 }
