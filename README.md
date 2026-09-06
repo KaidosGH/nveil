@@ -6,7 +6,7 @@ Self-hosted, zero-knowledge ephemeral secrets sharing. Share passwords, API keys
   <img src="docs/screenshot-landing.png" alt="nveil landing page — hero, demo banner and the Ribbon Field background" width="800">
 </p>
 
-The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookie is a functional one storing your language choice.
+The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookie is a functional one storing your language choice (managed instances with the create-key gate add an httpOnly cookie holding the instance access key).
 
 **Try it live:** a public demo runs at [demo.nveil.app](https://demo.nveil.app) — the same software you would host. By zero-knowledge design it cannot read the secrets shared through it (keys never leave the browser), but it is still a demo: secrets there are wiped regularly, so host your own for real use (see [Deployment](#deployment-docker)).
 
@@ -104,6 +104,8 @@ through to the app container).
 | `NVEIL_REPORT_ABUSE_KEY` | — | Operator key for the queue (≥ 32 chars; required when abuse reporting is on) |
 | `NVEIL_ABUSE_EMAIL` | — | Optional dedicated abuse contact in `security.txt` |
 | `NVEIL_SUPPORT_LINK` | `true` | Shows the "Support this project" and GitHub footer links (`false` hides both, e.g. for white-labeled instances) |
+| `NVEIL_CREATE_KEYS` | off | `require` gates secret creation behind access keys managed in `/create-keys` (reads stay open) |
+| `NVEIL_MANAGEMENT_KEY` | — | Operator key for the create-keys UI (≥ 32 chars; required when the gate is on) |
 | `RATE_LIMIT_CREATE_PER_HOUR` | `30` | Secret creation limit per client IP |
 | `NVEIL_CLOUDFLARE_RANGES_URL` | built-in list | Refresh source for the Cloudflare edge IPs used to validate `CF-Connecting-IP` |
 | `RATE_LIMIT_VIEW_PER_MINUTE` | `120` | View limit per client IP |
@@ -193,6 +195,7 @@ days, and check the abuse queue when reports arrive.
 - Rate limiting is in-memory: fine for a single instance; multi-replica deployments should move it to Redis.
 - Never log plaintext or keys. Plaintext exists only in the browser's memory of the two parties.
 - Abuse reports store only the secret ID, an optional reason and timestamps — never reporter IPs, fragments or secret contents. Reports are only visible to holders of `NVEIL_REPORT_ABUSE_KEY`.
+- Optional create-key gate (managed instances): secret creation requires a 256-bit access key; only its SHA-256 hash, a label and lifecycle timestamps are stored — secrets are never linked to keys, and the key travels in an `httpOnly` cookie scripts cannot read.
 
 ## AI-assisted development
 

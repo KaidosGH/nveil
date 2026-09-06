@@ -106,6 +106,22 @@ jobs:
           done
           BASE_URL=http://localhost:3201 npm run test:ui
 
+      # Create-key gate e2e: needs its own server started with the gate on
+      # (a throwaway management key guards a test-only key list on the same
+      # scratch database). See tests/create-keys.e2e.mjs.
+      - name: Create-key gate e2e
+        env:
+          NVEIL_CREATE_KEYS: 'require'
+          NVEIL_MANAGEMENT_KEY: ci-test-only-management-key-0123456789abcdef
+        run: |
+          npx next start -p 3202 -H 0.0.0.0 &
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://localhost:3202/api/health > /dev/null 2>&1; then break; fi
+            if [ "$i" = 30 ]; then echo "server did not become healthy" >&2; exit 1; fi
+            sleep 1
+          done
+          BASE_URL=http://localhost:3202 NVEIL_MANAGEMENT_KEY=ci-test-only-management-key-0123456789abcdef node tests/create-keys.e2e.mjs
+
   publish-image:
     # Runs only on v* tags, after the full test suite passed.
     if: startsWith(github.ref, 'refs/tags/v')

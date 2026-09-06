@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "check": "node tests/crypto.test.mts && node tests/cf-ip.test.mjs && node tests/request-body.test.mjs && node tests/markdown-renderer.test.mjs && node tests/legal-content.test.mjs && node --experimental-strip-types tests/schema-drift.test.mjs",
+    "check": "node tests/crypto.test.mts && node tests/cf-ip.test.mjs && node tests/request-body.test.mjs && node tests/create-keys.test.mjs && node tests/markdown-renderer.test.mjs && node tests/legal-content.test.mjs && node --experimental-strip-types tests/schema-drift.test.mjs",
     "test:e2e": "node tests/orchestrate.mjs e2e",
     "test:ui": "node tests/orchestrate.mjs ui",
     "db:push": "drizzle-kit push"
