@@ -25,6 +25,9 @@ const md = [
   '<script>alert(1)</script>',
   '<img src=x onerror=alert(1)>',
   '[link](javascript:alert(1))',
+  '[link](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)',
+  '[link](vbscript:msgbox(1))',
+  '[link](JaVaScRiPt:alert(1))',
 ].join('\n');
 
 const tree = await unified()
@@ -50,7 +53,10 @@ const checks = {
   'code element marked hljs': classNames.has('hljs'),
   'script stripped': !tags.has('script'),
   'img stripped': !tags.has('img'),
-  'javascript: link neutralized': !hrefs.some((h) => h.startsWith('javascript:')),
+  // Allowlist check, mirroring the shipped schema's protocols
+  // (['http', 'https', 'mailto']) — a denylist (e.g. "not javascript:")
+  // would miss data:, vbscript: and case-mangled schemes.
+  'links are allowlist-schemes only': hrefs.every((h) => /^(https?|mailto):/i.test(h)),
 };
 let failed = 0;
 for (const [name, ok] of Object.entries(checks)) {
