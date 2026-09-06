@@ -12,4 +12,5 @@ export const LABELS = {
   privacy: { en: 'Privacy', de: 'Datenschutz', route: '/privacy' },
   cookies_and_tracking: { en: 'Cookies & Tracking', de: 'Cookies & Tracking', route: '/cookies-and-tracking' },
   tos: { en: 'Terms', de: 'Nutzungsbedingungen', route: '/tos' },
+  managed: { en: 'Managed instance', de: 'Managed-Instanz', route: '/managed' },
 } as const;

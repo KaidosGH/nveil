@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { getServerLocale } from '@/lib/i18n-server';
 import { type Locale } from '@/lib/i18n/index';
 import { getLegalContent, type LegalKind } from '@/lib/legal-content';
@@ -27,6 +28,10 @@ export async function LegalPage({ kind }: { kind: LegalKind }) {
   const file = await getLegalContent(kind);
   const locale = await getServerLocale();
   const label = LABELS[kind];
+
+  // 'managed' is an operator page, not a legal page: without operator content
+  // there is nothing to show (the footer link is also hidden in that state).
+  if (kind === 'managed' && !file) notFound();
 
   if (file) {
     return (

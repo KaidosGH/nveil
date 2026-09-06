@@ -16,7 +16,6 @@ export const en = {
     no: 'No',
     skipToContent: 'Skip to content',
     supportProject: 'Support this project',
-    managedInstance: 'Managed instance for your company',
     pageNotFound: 'Page not found',
     pageNotFoundDesc: 'This address does not exist. The link may be incomplete or mistyped.',
     unexpectedError: 'Something went wrong',

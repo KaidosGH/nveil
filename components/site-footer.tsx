@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ABUSE_REPORTS_ENABLED, IS_PUBLIC_DEPLOYMENT, MANAGED_URL, SUPPORT_URL } from '@/lib/deployment';
+import { ABUSE_REPORTS_ENABLED, IS_PUBLIC_DEPLOYMENT, SUPPORT_LINK } from '@/lib/deployment';
 import { LABELS } from '@/lib/legal-page-labels';
 import { availableLegalKinds } from '@/lib/legal-content';
 import { getServerLocale } from '@/lib/i18n-server';
@@ -49,9 +49,9 @@ export async function SiteFooter() {
         {ABUSE_REPORTS_ENABLED && <ReportAbuseDialog />}
         <LocaleToggle locale={locale} />
         <EffectsToggle />
-        {SUPPORT_URL && (
+        {SUPPORT_LINK && (
           <a
-            href={SUPPORT_URL}
+            href="https://ko-fi.com/kaidos"
             target="_blank"
             rel="noopener noreferrer"
             className="rounded px-1 py-1.5 underline-offset-4 hover:underline"
@@ -60,27 +60,18 @@ export async function SiteFooter() {
             <span className="sr-only"> {t.common.opensInNewTab}</span>
           </a>
         )}
-        {MANAGED_URL && (
+        {SUPPORT_LINK && (
           <a
-            href={MANAGED_URL}
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded px-1 py-1.5 underline-offset-4 hover:underline"
+            aria-label="GitHub"
+            className="rounded p-1.5 underline-offset-4 hover:opacity-80"
           >
-            {t.common.managedInstance}
-            <span className="sr-only"> {t.common.opensInNewTab}</span>
+            <GitHubIcon />
+            <span className="sr-only">{t.common.opensInNewTab}</span>
           </a>
         )}
-        <a
-          href={GITHUB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="GitHub"
-          className="rounded p-1.5 underline-offset-4 hover:opacity-80"
-        >
-          <GitHubIcon />
-          <span className="sr-only">{t.common.opensInNewTab}</span>
-        </a>
       </nav>
     </footer>
   );

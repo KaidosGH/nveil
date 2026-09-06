@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-export type LegalKind = 'imprint' | 'privacy' | 'cookies_and_tracking' | 'tos';
+export type LegalKind = 'imprint' | 'privacy' | 'cookies_and_tracking' | 'tos' | 'managed';
 export type LegalContent = { format: 'html' | 'txt'; content: string };
 
 /**
@@ -11,7 +11,10 @@ export type LegalContent = { format: 'html' | 'txt'; content: string };
  * Each kind maps to `content/${kind}.html` / `content/${kind}.txt`
  * (HTML wins over txt). One name per kind, no aliases.
  */
-const KINDS: LegalKind[] = ['imprint', 'privacy', 'cookies_and_tracking', 'tos'];
+// 'managed' is the operator's optional commercial page (e.g. a managed-hosting
+// offer); it flows through the same file/route/footer mechanics as the legal
+// pages, but without a built-in placeholder — no file, no page (see legal-page).
+const KINDS: LegalKind[] = ['imprint', 'privacy', 'cookies_and_tracking', 'tos', 'managed'];
 
 /**
  * Returns the operator's content for a kind, or null when no file is
