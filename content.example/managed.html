@@ -4,6 +4,11 @@
   Purely operator content: fill it in, or don't ship the file at all —
   the footer link then never appears.
 
+  The contact flow is deliberately a mailto: link to your own forwarding
+  address — no embedded third-party forms (they would violate the
+  no-third-party-requests posture and the CSP). Set up the forwarding
+  address used below before going live, and rotate it if it attracts spam.
+
   Mount the filled-in file as content/managed.html (or .txt) — see README,
   "Legal pages".
 -->
@@ -21,5 +26,16 @@ read the secrets shared through it.]</p>
   <li>[Support channel and response time]</li>
 </ul>
 
-<h2>Contact</h2>
-<p>Email: [email]</p>
+<h2>Pricing</h2>
+<p>[From €X/month — transparent starting prices convert better than
+"contact us for a quote"; remove this section for a pure quote model.]</p>
+
+<h2>Get in touch</h2>
+<p>
+  Email
+  <a href="mailto:managed@nveil.app?subject=Managed%20instance%20inquiry&body=Company%3A%0AExpected%20usage%20(secrets%2Fmonth)%3A%0ATimeline%3A%0A">managed@nveil.app</a>
+  with a short description of your needs — [we reply within two business
+  days]. The prefilled subject and body help you answer faster; the
+  address only receives inquiries and is not connected to any nveil
+  instance.
+</p>
