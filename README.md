@@ -26,6 +26,7 @@ Source: [github.com/KaidosGH/nveil](https://github.com/KaidosGH/nveil)
 - **QR codes** — share the secret or management link optically; the QR encodes exactly the URL shown on screen
 - **Management links** — delete a secret before it expires, without revealing it
 - **Abuse reporting** — public report dialog and a key-protected operator queue
+- **Access-key gate (managed instances)** — restrict secret creation to holders of revocable access keys, managed in a key-protected UI; reads stay open for recipients
 - **Bilingual UI** (English / German, toggle in the footer)
 - **Legal pages** — fill-in templates for privacy notice, imprint, cookies and terms; the footer links only the pages you actually provide (see "Legal pages" below)
 - **Zero tracking** — no analytics, no third-party requests; the only cookie stores the language choice (`nveil-lang`); dark UI with a performance-effects toggle
@@ -171,6 +172,9 @@ footer links can be hidden with `NVEIL_SUPPORT_LINK=false`.
 | DELETE | `/api/secrets/{id}` | Delete — always requires a valid `x-creator-token` header |
 | POST | `/api/abuse-reports` | Report abuse (`{ url, reason? }`; an `x-key-checksum` header marks the report witness-verified) — enabled via `NVEIL_REPORT_ABUSE`; answers a uniform 202 |
 | GET | `/api/abuse-reports/list` | Operator queue (`x-abuse-key` header; `?includeResolved` also returns closed reports) |
+| GET / POST | `/api/access-keys` | Access-key management for the gate: list, create (raw key returned once) — management key required |
+| DELETE | `/api/access-keys/{id}` | Revoke an access key (management key required) |
+| GET / PUT | `/api/settings` | Instance settings runtime overrides (footer support links, default language) — management key required |
 | POST | `/api/abuse-reports/{id}/resolve` | Close a report without touching the secret (operator) |
 | POST | `/api/abuse-reports/{id}/delete-secret` | Delete the reported secret and close the report (operator) |
 | GET | `/.well-known/security.txt` | RFC 9116 security contact (from `NVEIL_CONTACT_EMAIL` / `NVEIL_ABUSE_EMAIL`) |

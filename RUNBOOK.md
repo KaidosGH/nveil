@@ -13,6 +13,7 @@ instance. Assumes the docker-compose deployment from the repository root.
 | Container status | `docker compose ps` — app and db should show `(healthy)` (healthchecks configured in `docker-compose.yml`). |
 | Logs | `docker compose logs app --tail 100` — the app intentionally logs almost nothing (privacy); expect startup lines only. |
 | Restart | `docker compose restart app` — in-memory rate-limit buckets reset (limits re-apply immediately). |
+| Access keys | Managed-tenant access keys are managed in [/management](/management) (management key, session-stored). Revoking a key takes effect immediately. |
 
 ## 2. Abuse report handling
 

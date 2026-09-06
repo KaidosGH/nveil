@@ -455,7 +455,10 @@ export function CreateSecretForm() {
             size="lg"
             className="w-full"
             loading={submitting}
-            disabled={submitting}
+            // While the access-key prompt is open, creation is gated: Unlock
+            // verifies the key and auto-retries, so this button stays out of
+            // the way until then.
+            disabled={submitting || needsKey}
             onClick={() => submit()}
           >
             {submitting ? t.create.encrypting : t.create.create}
