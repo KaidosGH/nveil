@@ -275,8 +275,10 @@ async function fetchSecret(id, keyString) {
 {
   const response = await fetch(`${BASE}/`);
   const csp = response.headers.get('content-security-policy') ?? '';
-  assert.match(csp, /script-src 'self' 'nonce-/);
-  assert.match(csp, /strict-dynamic/);
+  assert.match(csp, /script-src 'nonce-[^']+' 'strict-dynamic'/);
+  // 'self' must stay out of script-src: under 'strict-dynamic' (CSP3) it is
+  // ignored policy and only earns a console warning on every page load.
+  assert.doesNotMatch(csp, /script-src[^;]*'self'/);
   assert.match(csp, /object-src 'none'/);
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
