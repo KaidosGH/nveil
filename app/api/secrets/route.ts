@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const limit = rateLimit(`create:${await clientIp(request.headers)}`, RATE_LIMITS.createPerHour, 60 * 60 * 1000);
   if (!limit.ok) {
     return NextResponse.json(
-      { error: 'rate_limited', message: apiMessage(request, 'rate_limited') },
+      { error: 'rate_limited', message: await apiMessage(request, 'rate_limited') },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
     );
   }
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       : [];
     if (!row || !isKeyUsable(row)) {
       const response = NextResponse.json(
-        { error: 'access_key_required', message: apiMessage(request, 'access_key_required') },
+        { error: 'access_key_required', message: await apiMessage(request, 'access_key_required') },
         { status: 403 },
       );
       // A stale cookie would trap the holder in 403s — clear it.

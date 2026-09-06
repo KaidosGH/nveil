@@ -35,6 +35,15 @@ export const abuseReports = pgTable('abuse_reports', {
 // Optional access-key gate (NVEIL_ACCESS_KEYS=require): hashed keys that
 // gate secret creation on managed instances. Raw keys are shown once and
 // never stored; secrets are NOT linked to keys (privacy posture).
+// Runtime instance settings (management UI writable). Only cosmetic/UX
+// settings live here; security posture and bootstrap config stay env-only.
+// A DB row overrides the env default; deleting the row resets to the env.
+export const instanceSettings = pgTable('instance_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const accessKeys = pgTable('access_keys', {
   id: text('id').primaryKey(),
   label: text('label').notNull(),

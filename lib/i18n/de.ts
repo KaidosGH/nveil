@@ -263,6 +263,25 @@ export const de: Dict = {
     never: 'never',
     status: { active: 'active', revoked: 'revoked', expired: 'expired' },
   },
+  management: {
+    title: 'Instanzverwaltung',
+    unlockDesc: 'Gib den Verwaltungsschlüssel ein, um die Instanzverwaltung zu öffnen.',
+    keyLabel: 'Verwaltungsschlüssel',
+    unlock: 'Entsperren',
+    invalidKey: 'Ungültiger Verwaltungsschlüssel.',
+    unreachable: 'Server nicht erreichbar.',
+    tabs: { keys: 'Access keys', settings: 'Einstellungen', branding: 'Branding' },
+    brandingSoon: 'Markenanpassung (Logo, Farben) kommt bald.',
+  },
+  settings: {
+    desc: 'Laufzeit-Überschreibungen für diese Instanz — bis zur Änderung hier gelten die Env-Defaults.',
+    supportLinkLabel: 'Support-Links im Footer',
+    supportLinkDesc: '„Projekt unterstützen" und das GitHub-Symbol im Footer.',
+    defaultLanguageLabel: 'Standardsprache',
+    defaultLanguageDesc: 'Sprache für Erstbesucher, bis sie eine wählen.',
+    save: 'Speichern',
+    saved: 'Gespeichert',
+  },
 };
 
 

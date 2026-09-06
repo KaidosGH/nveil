@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ABUSE_REPORTS_ENABLED, IS_PUBLIC_DEPLOYMENT, SUPPORT_LINK } from '@/lib/deployment';
+import { ABUSE_REPORTS_ENABLED, IS_PUBLIC_DEPLOYMENT } from '@/lib/deployment';
+import { getEffectiveSupportLink } from '@/lib/instance-settings';
 import { LABELS } from '@/lib/legal-page-labels';
 import { availableLegalKinds } from '@/lib/legal-content';
 import { getServerLocale } from '@/lib/i18n-server';
@@ -30,6 +31,7 @@ export async function SiteFooter() {
   const locale = await getServerLocale();
   const t = getDict(locale);
   const legalKinds = IS_PUBLIC_DEPLOYMENT ? await availableLegalKinds() : [];
+  const supportLink = await getEffectiveSupportLink();
 
   return (
     <footer className="mt-auto border-t border-border/60 py-6 text-center text-sm text-muted-foreground">
@@ -49,7 +51,7 @@ export async function SiteFooter() {
         {ABUSE_REPORTS_ENABLED && <ReportAbuseDialog />}
         <LocaleToggle locale={locale} />
         <EffectsToggle />
-        {SUPPORT_LINK && (
+        {supportLink && (
           <a
             href="https://ko-fi.com/kaidos"
             target="_blank"
@@ -60,7 +62,7 @@ export async function SiteFooter() {
             <span className="sr-only"> {t.common.opensInNewTab}</span>
           </a>
         )}
-        {SUPPORT_LINK && (
+        {supportLink && (
           <a
             href={GITHUB_URL}
             target="_blank"

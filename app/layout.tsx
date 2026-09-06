@@ -9,6 +9,7 @@ import { I18nProvider } from '@/components/i18n-provider';
 import { getAnnouncement } from '@/lib/announcement';
 import { getDict } from '@/lib/i18n/index';
 import { localeFromParts } from '@/lib/i18n-server';
+import { getEffectiveDefaultLanguage } from '@/lib/instance-settings';
 import './globals.css';
 
 // Matches the forced dark theme so mobile browser chrome blends in, and
@@ -35,7 +36,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
-  const locale = localeFromParts(cookieStore.get('nveil-lang')?.value);
+  const locale = localeFromParts(
+    cookieStore.get('nveil-lang')?.value,
+    await getEffectiveDefaultLanguage(),
+  );
   const announcement = await getAnnouncement();
 
   // Pre-CSS canvas color: the browser paints this inline background before

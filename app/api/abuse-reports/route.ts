@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   );
   if (!limit.ok) {
     return NextResponse.json(
-      { error: 'rate_limited', message: apiMessage(request, 'rate_limited') },
+      { error: 'rate_limited', message: await apiMessage(request, 'rate_limited') },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
     );
   }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
   const secretId = extractSecretId(parsed.data.url);
   if (!secretId) {
     return NextResponse.json(
-      { error: 'invalid_url', message: apiMessage(request, 'invalid_url') },
+      { error: 'invalid_url', message: await apiMessage(request, 'invalid_url') },
       { status: 400 },
     );
   }

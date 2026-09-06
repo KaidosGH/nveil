@@ -262,6 +262,25 @@ export const en = {
     never: 'never',
     status: { active: 'active', revoked: 'revoked', expired: 'expired' },
   },
+  management: {
+    title: 'Instance management',
+    unlockDesc: 'Enter the management key to open instance management.',
+    keyLabel: 'Management key',
+    unlock: 'Unlock',
+    invalidKey: 'Invalid management key.',
+    unreachable: 'Could not reach the server.',
+    tabs: { keys: 'Access keys', settings: 'Settings', branding: 'Branding' },
+    brandingSoon: 'Brand customization (logo, colors) is coming soon.',
+  },
+  settings: {
+    desc: 'Runtime overrides for this instance — env defaults apply until you change a value here.',
+    supportLinkLabel: 'Footer support links',
+    supportLinkDesc: '"Support this project" and the GitHub icon in the footer.',
+    defaultLanguageLabel: 'Default language',
+    defaultLanguageDesc: 'Language for first-time visitors until they pick one.',
+    save: 'Save',
+    saved: 'Saved',
+  },
 };
 
 export type Dict = typeof en;
