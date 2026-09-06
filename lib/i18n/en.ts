@@ -249,7 +249,7 @@ export const en = {
     invalidKey: 'Invalid management key.',
     unreachable: 'Could not reach the server.',
     actionFailed: 'Action failed.',
-    noKeys: 'No create keys yet.',
+    noKeys: 'No access keys yet.',
     newKeyTitle: 'New access key',
     newKeyLabel: 'Label (team or purpose)',
     expiresLabel: 'Expires (optional)',

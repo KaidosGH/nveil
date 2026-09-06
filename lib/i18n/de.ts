@@ -250,7 +250,7 @@ export const de: Dict = {
     invalidKey: 'Invalid management key.',
     unreachable: 'Could not reach the server.',
     actionFailed: 'Action failed.',
-    noKeys: 'No create keys yet.',
+    noKeys: 'Noch keine Access keys.',
     newKeyTitle: 'New access key',
     newKeyLabel: 'Label (team or purpose)',
     expiresLabel: 'Expires (optional)',

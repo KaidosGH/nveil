@@ -98,7 +98,8 @@ export default function ManagementPage() {
 
   // Boot: a stored management key is validated against the settings API —
   // 200 means unlocked (and delivers the current settings), 401 means the
-  // key must be re-entered.
+  // key must be re-entered. The access-keys list is reloaded here too —
+  // otherwise a refresh showed an empty table despite valid keys.
   useEffect(() => {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (!stored) {
@@ -110,8 +111,9 @@ export default function ManagementPage() {
       if (!ok) sessionStorage.removeItem(STORAGE_KEY);
       setUnlocked(ok);
       setBooting(false);
+      if (ok) void loadKeys();
     })();
-  }, [loadSettings]);
+  }, [loadSettings, loadKeys]);
 
   async function unlock() {
     setUnlockError(null);
