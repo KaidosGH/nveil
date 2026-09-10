@@ -4,17 +4,13 @@ import { desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { accessKeys } from '@/drizzle/schema';
-import { ensureSchema } from '@/lib/db-init';
 import { generateAccessKey, requireManagement } from '@/lib/access-keys';
+import { ADMIN_BODY_CAP, parseJsonBody } from '@/lib/request-body';
+import { denied } from '@/lib/api-response';
 
 export async function GET(request: NextRequest) {
   const gate = await requireManagement(request);
-  if (!gate.ok) {
-    return NextResponse.json(
-      { error: gate.error },
-      { status: gate.status, headers: gate.retryAfter ? { 'Retry-After': String(gate.retryAfter) } : undefined },
-    );
-  }
+  if (!gate.ok) return denied(gate);
   const rows = await db
     .select({
       id: accessKeys.id,
@@ -40,17 +36,11 @@ const createSchema = z.object({
 
 export async function POST(request: NextRequest) {
   const gate = await requireManagement(request);
-  if (!gate.ok) {
-    return NextResponse.json(
-      { error: gate.error },
-      { status: gate.status, headers: gate.retryAfter ? { 'Retry-After': String(gate.retryAfter) } : undefined },
-    );
-  }
+  if (!gate.ok) return denied(gate);
 
-  const raw = await request.json().catch(() => null);
-  const parsed = createSchema.safeParse(raw);
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  const parsed = await parseJsonBody(request, ADMIN_BODY_CAP, createSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
 
   const key = generateAccessKey();

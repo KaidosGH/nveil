@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui';
@@ -23,6 +23,13 @@ export function ReportAbuseDialog({ prefillUrl, keyChecksum }: { prefillUrl?: bo
   const [reason, setReason] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const doneRef = useRef<HTMLParagraphElement>(null);
+
+  // Success replaces the form (and the focused submit button) with a static
+  // confirmation: move focus onto it so it is announced and Tab order is sane.
+  useEffect(() => {
+    if (status === 'done') doneRef.current?.focus();
+  }, [status]);
 
   // Post-decryption the key fragment is already scrubbed from the address bar,
   // so the pre-filled link never carries the decryption key to the server.
@@ -88,7 +95,9 @@ export function ReportAbuseDialog({ prefillUrl, keyChecksum }: { prefillUrl?: bo
         width="max-w-lg"
       >
         {status === 'done' ? (
-          <p className="text-sm">{t.abuseDialog.received}</p>
+          <p ref={doneRef} tabIndex={-1} role="status" className="animate-pop text-sm outline-none">
+            {t.abuseDialog.received}
+          </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">

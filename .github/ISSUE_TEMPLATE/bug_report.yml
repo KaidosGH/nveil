@@ -37,7 +37,7 @@ body:
     id: version
     attributes:
       label: nveil version
-      description: The release (e.g. 0.2.0) or commit, if built from source.
+      description: The release (e.g. 0.4.0) or commit, if built from source.
     validations:
       required: true
   - type: dropdown

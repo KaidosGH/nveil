@@ -1,17 +1,15 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { ABUSE_REPORTS_ENABLED, REPORT_ABUSE_KEY } from '@/lib/deployment';
 import { clientIp, RATE_LIMITS, rateLimit } from '@/lib/rate-limit';
+import { timingSafeEqualStrings } from '@/lib/key-checksum';
 
 /**
- * Constant-time check of the abuse-admin key. Both sides are hashed first so
- * the comparison length is fixed regardless of input.
+ * Constant-time check of the abuse-admin key. Hash-both-sides happens inside
+ * the shared helper, so the comparison length is fixed regardless of input.
  */
 export function verifyAbuseKey(submitted: string): boolean {
   if (REPORT_ABUSE_KEY.length < 32 || submitted.length === 0) return false;
-  const submittedHash = createHash('sha256').update(submitted).digest();
-  const expectedHash = createHash('sha256').update(REPORT_ABUSE_KEY).digest();
-  return timingSafeEqual(submittedHash, expectedHash);
+  return timingSafeEqualStrings(submitted, REPORT_ABUSE_KEY);
 }
 
 /**

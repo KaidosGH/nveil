@@ -134,7 +134,7 @@ page.setDefaultTimeout(15_000);
   await page.waitForSelector('#secret-passphrase');
   const type = await page.getAttribute('#secret-passphrase', 'type');
   assert.equal(type, 'text', 'passphrase field must be text-typed (PassphraseInput)');
-  assert.ok(await page.isVisible('#secret-passphrase ~ div button, button[aria-label*="Show"], button[aria-label*="Hide"]'),
+  assert.ok(await page.isVisible('#secret-passphrase + button'),
     'eye toggle must be present next to the passphrase field');
 
   // Decrypt dialog: same guarantee on a password-protected secret.

@@ -18,7 +18,9 @@
   --destructive: #a8322c;
   --destructive-foreground: #e0857d;
   --border: #26262b;
-  --input: #2c2c31;
+  /* Form-control boundary: >= 3:1 against --card (WCAG 1.4.11). Inputs are
+     transparent, so this border is the only thing identifying the control. */
+  --input: #66666f;
   /* Focus ring: >= 3:1 against card/muted backgrounds (WCAG 1.4.11). */
   --ring: #8a8a95;
   --radius: 0.5rem;
@@ -42,6 +44,15 @@
   --radius-md: var(--radius);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Strong easing, shared by every transition and animation. Built-in CSS
+   easings are too weak — they soften the moment the user watches most. The
+   default timing function makes every `transition-*` utility use this curve,
+   so components don't each repeat it. */
+@theme {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --default-transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* Background lives on <html>, not body: body paints in-flow, ABOVE the
@@ -111,18 +122,83 @@ html {
   }
 }
 
+/* Exit mirrors: shorter than the entry — the system's response should snap
+   while the user's deliberate action can take its time. */
+@keyframes nveil-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes nveil-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* In-place content swap (markdown <-> plain): the blur bridges the two states
+   so they read as one morph instead of two overlapping objects. */
+@keyframes nveil-crossfade {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
 .animate-fade-up {
-  animation: nveil-fade-up 240ms ease-out both;
+  animation: nveil-fade-up 240ms var(--ease-out) both;
 }
 
 .animate-pop {
-  animation: nveil-pop 160ms ease-out both;
+  animation: nveil-pop 180ms var(--ease-out) both;
 }
 
-/* Modal backdrop: fades in alongside the popping card so overlay and dialog
-   read as one surface. Exit stays instant (snappy dismissal). */
+/* Modal backdrop fades in alongside the popping card (matched 180ms) so
+   overlay and dialog read as one surface. */
 .animate-fade {
-  animation: nveil-fade 200ms ease-out both;
+  animation: nveil-fade 180ms var(--ease-out) both;
+}
+
+.animate-fade-out {
+  animation: nveil-fade-out 140ms var(--ease-out) both;
+}
+
+.animate-pop-out {
+  animation: nveil-pop-out 140ms var(--ease-out) both;
+}
+
+.animate-crossfade {
+  animation: nveil-crossfade 160ms var(--ease-out) both;
+}
+
+/* Enter transition for content that mounts on a state change (copy feedback):
+   a transition, not a keyframe, so it retargets from the current state. */
+.animate-swap {
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Enter animation for the <details> disclosure. Native closed content is
+   display:none, so there is no style to transition *from*; @starting-style
+   supplies it the moment the content is first shown. */
+.disclosure {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 /* Faster spinner: reads as faster loading at identical load time. */
@@ -134,10 +210,31 @@ html {
   /* Gentle, not zero: opacity-only fades stay; the movement — translateY,
      scale — is what gets dropped. */
   .animate-fade-up {
-    animation: nveil-fade 240ms ease-out both;
+    animation: nveil-fade 240ms var(--ease-out) both;
   }
   .animate-pop {
     animation: none;
+  }
+  /* Exit still needs the fade, or the node would sit static until unmount. */
+  .animate-pop-out {
+    animation: nveil-fade-out 140ms var(--ease-out) both;
+  }
+  .animate-crossfade {
+    animation: nveil-fade 160ms var(--ease-out) both;
+  }
+  .animate-swap {
+    transition: opacity 150ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+  .disclosure {
+    transition: opacity 180ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
   }
 }
 

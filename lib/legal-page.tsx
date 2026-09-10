@@ -39,7 +39,7 @@ export async function LegalPage({ kind }: { kind: LegalKind }) {
       // Solid Card surface: operator text must stay readable over the
       // animated background (same content treatment as the app's cards).
       <main className="mx-auto w-full max-w-2xl px-4 py-12">
-        <Card>
+        <Card className="animate-fade-up">
           <CardContent className="pt-6">
             {file.format === 'html' ? (
               // Operator-provided content — trusted to the same degree as the codebase.
@@ -58,7 +58,7 @@ export async function LegalPage({ kind }: { kind: LegalKind }) {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-12">
-      <Card>
+      <Card className="animate-fade-up">
         <CardContent className="pt-6">
           <h1 className="text-2xl font-semibold">{label[locale]}</h1>
           <p className="mt-6 text-sm text-muted-foreground">

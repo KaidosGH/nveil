@@ -18,6 +18,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      <h1 className="sr-only">{t.common.unexpectedError}</h1>
       <Card className="animate-fade-up">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive-foreground">

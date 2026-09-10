@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { accessKeys } from '@/drizzle/schema';
-import { ensureSchema } from '@/lib/db-init';
 import {
-  ACCESS_KEY_COOKIE,
   ACCESS_KEYS_REQUIRED,
   accessKeyCookie,
   accessKeyCookieMaxAge,
+  findUsableAccessKey,
   isKeyUsable,
-  keyHash,
 } from '@/lib/access-keys';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
-import { z } from 'zod';
+import { ensureSchema } from '@/lib/db-init';
+import { clientIp, RATE_LIMITS, rateLimit } from '@/lib/rate-limit';
+import { ADMIN_BODY_CAP, parseJsonBody } from '@/lib/request-body';
+import { keyBodySchema } from '@/lib/validation';
 
 /**
- * One-time key entry for the create page: validates a pasted create key and
+ * One-time key entry for the create page: validates a pasted access key and
  * moves it into an httpOnly cookie, so scripts on the page never handle the
  * credential again. Only meaningful when the access-key gate is on.
  */
@@ -23,22 +23,23 @@ export async function POST(request: NextRequest) {
   if (!ACCESS_KEYS_REQUIRED) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
-  const limit = rateLimit(`ckv:${await clientIp(request.headers)}`, 10, 60 * 1000);
+  const limit = rateLimit(`access-key:${await clientIp(request.headers)}`, RATE_LIMITS.accessKeyVerifyPerMinute, 60 * 1000);
   if (!limit.ok) {
-    return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+    );
   }
   await ensureSchema();
 
-  const raw = await request.json().catch(() => null);
-  const parsed = z.object({ key: z.string().min(1).max(200) }).safeParse(raw);
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid_key' }, { status: 401 });
+  // Public-facing (any visitor of a managed instance can paste a key), so the
+  // body is read under the same cap as the management metadata routes.
+  const parsed = await parseJsonBody(request, ADMIN_BODY_CAP, keyBodySchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
 
-  const [row] = await db
-    .select()
-    .from(accessKeys)
-    .where(and(eq(accessKeys.keyHash, keyHash(parsed.data.key)), isNull(accessKeys.revokedAt)));
+  const row = await findUsableAccessKey(parsed.data.key);
   if (!row || !isKeyUsable(row)) {
     return NextResponse.json({ error: 'invalid_key' }, { status: 401 });
   }

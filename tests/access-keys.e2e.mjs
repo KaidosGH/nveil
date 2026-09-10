@@ -138,4 +138,39 @@ let keyId = '';
   console.log('6. revocation: ok');
 }
 
+// 7. Management cookie session: the UI flow exchanges the typed key for an
+//    httpOnly cookie; wrong keys are rejected and logout clears the cookie.
+{
+  const wrong = await fetch(`${BASE}/api/management/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'wrong-wrong-wrong-wrong-wrong' }),
+  });
+  assert.equal(wrong.status, 401);
+
+  const unlock = await fetch(`${BASE}/api/management/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: MANAGEMENT_KEY }),
+  });
+  assert.equal(unlock.status, 200);
+  const setCookie = unlock.headers.get('set-cookie') ?? '';
+  assert.match(setCookie, /nveil-management=/);
+  assert.match(setCookie, /HttpOnly/i);
+  const mgmtCookie = setCookie.split(';')[0];
+
+  // Cookie alone authenticates the management API (no header).
+  const keys = await fetch(`${BASE}/api/access-keys`, { headers: { Cookie: mgmtCookie } });
+  assert.equal(keys.status, 200, 'management cookie must authenticate the keys API');
+
+  const logout = await fetch(`${BASE}/api/management/session`, {
+    method: 'DELETE',
+    headers: { Cookie: mgmtCookie },
+  });
+  assert.equal(logout.status, 204);
+  const cleared = logout.headers.get('set-cookie') ?? '';
+  assert.match(cleared, /nveil-management=;/, 'logout must clear the cookie');
+  console.log('7. management cookie session: ok');
+}
+
 console.log('access-key gate e2e passed');

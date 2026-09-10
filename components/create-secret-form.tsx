@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ import {
   wrapKeyWithPassword,
 } from '@/lib/crypto';
 import { EXPIRATION_PRESETS, MAX_CONTENT_BYTES, type ExpirationChoice } from '@/lib/validation';
-import { cn } from '@/lib/utils';
+import { cn, radioGroupKeyDown } from '@/lib/utils';
 
 type FormValues = {
   content: string;
@@ -41,6 +41,7 @@ const KEY_DELIVERY: KeyDelivery[] = ['link', 'separate', 'password'];
 
 export function CreateSecretForm() {
   const { t } = useI18n();
+  const keyDeliveryLabelId = useId();
   const [preset, setPreset] = useState<ExpirationChoice>('24h');
   const [customMinutes, setCustomMinutes] = useState(60);
   const [keyDelivery, setKeyDelivery] = useState<KeyDelivery>('link');
@@ -244,6 +245,7 @@ export function CreateSecretForm() {
 
   const content = form.watch('content');
   const contentBytes = new TextEncoder().encode(content ?? '').byteLength;
+  const contentError = form.formState.errors.content?.message;
 
   return (
     <Card>
@@ -264,6 +266,8 @@ export function CreateSecretForm() {
               rows={8}
               className="bg-background/40 font-mono"
               placeholder={t.create.contentPlaceholder}
+              aria-invalid={contentError ? true : undefined}
+              aria-describedby={contentError ? 'content-error' : undefined}
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !submitting) {
                   submit();
@@ -272,7 +276,7 @@ export function CreateSecretForm() {
               {...form.register('content')}
             />
             <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
-              <p>{form.formState.errors.content?.message}</p>
+              <p id="content-error">{contentError}</p>
               <span className="whitespace-nowrap tabular-nums">
                 {(contentBytes / 1024).toFixed(1)} / 100 KB
               </span>
@@ -302,10 +306,13 @@ export function CreateSecretForm() {
             <summary className="cursor-pointer text-sm text-muted-foreground">
               {t.create.advanced}
             </summary>
-            <div className="mt-4 space-y-3">
+            {/* Enter-only disclosure animation (reduced-motion: opacity only);
+                a native <details> hides its content with display:none, so the
+                transition is supplied by @starting-style in globals.css. */}
+            <div className="disclosure mt-4 space-y-3">
               {activeKeyInfo && (
                 <div className="space-y-2 rounded-md border border-border/60 p-3">
-                  <Label>{t.create.accessKeyActive}</Label>
+                  <p className="text-sm font-medium leading-none">{t.create.accessKeyActive}</p>
                   <p className="text-xs text-muted-foreground">{t.create.accessKeyActiveDesc}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <code className="rounded bg-muted px-2 py-1 font-mono text-xs">
@@ -348,19 +355,25 @@ export function CreateSecretForm() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label>{t.create.keyDeliveryLabel}</Label>
-                <div role="radiogroup" aria-label={t.create.keyDeliveryLabel} className="flex flex-wrap gap-1.5">
+                <span id={keyDeliveryLabelId} className="text-sm font-medium leading-none">{t.create.keyDeliveryLabel}</span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby={keyDeliveryLabelId}
+                  onKeyDown={(e) => radioGroupKeyDown(e, KEY_DELIVERY, keyDelivery, setKeyDelivery)}
+                  className="flex flex-wrap gap-1.5"
+                >
                   {KEY_DELIVERY.map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       role="radio"
                       aria-checked={keyDelivery === mode}
+                      tabIndex={keyDelivery === mode ? 0 : -1}
                       onClick={() => setKeyDelivery(mode)}
                       className={cn(
-                        'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,box-shadow,transform] active:scale-[0.97]',
+                        'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
                         keyDelivery === mode
-                          ? 'border-white/15 bg-primary text-primary-foreground ring-1 ring-inset ring-white/10'
+                          ? 'border-ring bg-primary font-medium text-primary-foreground'
                           : 'border-input hover:bg-muted',
                       )}
                     >

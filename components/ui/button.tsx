@@ -23,7 +23,7 @@ const sizes: Record<Size, string> = {
 
 const base =
   'inline-flex items-center justify-center gap-2 rounded-md font-medium ' +
-  'transition-[color,background-color,border-color,box-shadow,transform] active:scale-[0.97] ' +
+  'transition-[color,background-color,border-color,transform] active:scale-[0.97] ' +
   'focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50';
 
 export function buttonVariants({ variant = 'default', size = 'default' }: { variant?: Variant; size?: Size } = {}) {

@@ -1,7 +1,8 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { lt } from 'drizzle-orm';
-import { secrets, abuseReports } from '@/drizzle/schema';
+// Relative (not @/ alias) so plain-node self-checks can import this module.
+import { secrets, abuseReports } from '../drizzle/schema.ts';
 
 type DrizzleDb = ReturnType<typeof drizzle>;
 

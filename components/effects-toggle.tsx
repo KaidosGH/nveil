@@ -27,7 +27,6 @@ export function EffectsToggle() {
       type="button"
       onClick={toggle}
       title={on ? t.perf.effectsOffHint : t.perf.effectsOnHint}
-      aria-pressed={!on}
       className="flex h-8 items-center gap-1.5 rounded border border-border/60 px-2.5 hover:bg-muted"
     >
       <Gauge aria-hidden className="size-3.5" />

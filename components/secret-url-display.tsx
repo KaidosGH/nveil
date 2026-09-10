@@ -87,7 +87,7 @@ export function SecretUrlDisplay({
       </div>
 
       {showManage && (
-        <Card className="border-destructive/40">
+        <Card className="animate-fade-up border-destructive/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive-foreground">
               <TriangleAlert aria-hidden className="size-4" /> {t.result.manageTitle}

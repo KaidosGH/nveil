@@ -17,6 +17,29 @@ function error(status: number, code: string, message: string, headers?: HeadersI
 // intermediate proxy must never reuse a cached response.
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
+type SecretRow = typeof secrets.$inferSelect;
+
+/**
+ * The payload shape is identical for a burned and an untouched read; only the
+ * row source differs. One mapper so a new field can't be added to one branch
+ * and forgotten in the other. The wrapped key envelope is exposed only for
+ * password-protected secrets.
+ */
+function payload(s: SecretRow) {
+  return {
+    ciphertext: s.ciphertext,
+    iv: s.iv,
+    hasPassword: s.hasPassword,
+    wrappedKey: s.hasPassword ? s.wrappedKey : undefined,
+    wrapIv: s.hasPassword ? s.wrapIv : undefined,
+    wrapSalt: s.hasPassword ? s.wrapSalt : undefined,
+    burnAfterRead: s.burnAfterRead,
+    createdAt: s.createdAt,
+    expiresAt: s.expiresAt,
+    viewedAt: s.viewedAt,
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const limit = rateLimit(`view:${await clientIp(request.headers)}`, RATE_LIMITS.viewPerMinute, 60 * 1000);
   if (!limit.ok) {
@@ -93,18 +116,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!burned) {
       return error(404, 'consumed', await apiMessage(request, 'consumed'));
     }
-    return NextResponse.json({
-      ciphertext: burned.ciphertext,
-      iv: burned.iv,
-      hasPassword: burned.hasPassword,
-      wrappedKey: burned.hasPassword ? burned.wrappedKey : undefined,
-      wrapIv: burned.hasPassword ? burned.wrapIv : undefined,
-      wrapSalt: burned.hasPassword ? burned.wrapSalt : undefined,
-      burnAfterRead: true,
-      createdAt: burned.createdAt,
-      expiresAt: burned.expiresAt,
-      viewedAt: burned.viewedAt,
-    }, { headers: NO_STORE });
+    return NextResponse.json(payload(burned), { headers: NO_STORE });
   }
 
   // Only the view flow (no token) marks the secret as viewed — manage-page
@@ -114,18 +126,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     await db.update(secrets).set({ viewedAt: secret.viewedAt }).where(eq(secrets.id, id));
   }
 
-  return NextResponse.json({
-    ciphertext: secret.ciphertext,
-    iv: secret.iv,
-    hasPassword: secret.hasPassword,
-    wrappedKey: secret.hasPassword ? secret.wrappedKey : undefined,
-    wrapIv: secret.hasPassword ? secret.wrapIv : undefined,
-    wrapSalt: secret.hasPassword ? secret.wrapSalt : undefined,
-    burnAfterRead: secret.burnAfterRead,
-    createdAt: secret.createdAt,
-    expiresAt: secret.expiresAt,
-    viewedAt: secret.viewedAt,
-  }, { headers: NO_STORE });
+  return NextResponse.json(payload(secret), { headers: NO_STORE });
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {

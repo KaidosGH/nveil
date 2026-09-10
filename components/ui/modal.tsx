@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useI18n } from '@/components/i18n-provider';
 
 interface ModalProps {
   open: boolean;
@@ -24,7 +26,12 @@ const FOCUSABLE =
  * and the previously focused element is restored on close.
  */
 export function Modal({ open, onClose, title, description, children, width = 'max-w-md' }: ModalProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Keep the node mounted through the exit animation: the parent flips `open`
+  // to false and this delays the unmount by the exit duration. Reopening
+  // within that window cancels the timer, so the dialog never flickers out.
+  const [mounted, setMounted] = useState(open);
   // Keep the latest close handler without re-arming the focus trap: an inline
   // (non-memoized) onClose gets a new identity on every parent render, which
   // would tear down and re-run the trap effect on each keystroke — stealing
@@ -33,10 +40,27 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
   onCloseRef.current = onClose;
 
   useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    const timer = setTimeout(() => setMounted(false), 140);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     const dialog = dialogRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     dialog?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+
+    // The dialog portals to <body>, so its overlay is a direct body child:
+    // mark every sibling inert to take the rest of the page out of the tab
+    // order and the accessibility tree. aria-modal alone is not honored by
+    // every AT, and a focus trap does not stop virtual-cursor navigation.
+    const overlay = dialog?.parentElement;
+    const siblings = Array.from(document.body.children).filter((el) => el !== overlay);
+    for (const el of siblings) el.setAttribute('inert', '');
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -62,6 +86,7 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
+      for (const el of siblings) el.removeAttribute('inert');
       previouslyFocused?.focus();
     };
     // Deliberately [open] only — the onCloseRef above keeps the handler fresh
@@ -69,11 +94,11 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open) return null;
+  if (!mounted || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fade"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 ${open ? 'animate-fade' : 'animate-fade-out'}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -83,7 +108,7 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`w-full ${width} animate-pop`}
+        className={`w-full ${width} ${open ? 'animate-pop' : 'animate-pop-out'}`}
       >
         <Card>
           <CardHeader>
@@ -95,7 +120,7 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t.common.close}
                 className="rounded p-1 hover:bg-muted"
               >
                 <X aria-hidden className="size-4" />
@@ -105,6 +130,7 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
           <CardContent>{children}</CardContent>
         </Card>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -29,7 +29,23 @@ Rules:
 
 Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
 
-(Yes, this file also applies to agents working on the ponytail repo itself. Especially to them.)
+This repo is **nveil** — a Next.js App Router + TypeScript + drizzle/Postgres
+zero-knowledge secret-sharing app with a bilingual (en/de) UI. Quick reference:
+
+- `npm run check` runs the assert-based self-checks (crypto, rate-limit/IP,
+  body cap, access-key verification, markdown sanitizer, legal loader, schema
+  drift); `npx tsc --noEmit` for types. Both must pass before a change is done.
+- E2E: `npm run test:e2e` (API) and `npm run test:ui` (Playwright), orchestrated
+  by `tests/orchestrate.mjs`; the access-key gate suite is
+  `tests/access-keys.e2e.mjs` (needs `NVEIL_ACCESS_KEYS=require` +
+  `NVEIL_MANAGEMENT_KEY`).
+- Env/flags live in `lib/deployment.ts` and `lib/instance-settings.ts`, body
+  caps in `lib/request-body.ts`, the management gate in `lib/access-keys.ts`.
+  `lib/access-keys.ts` and `lib/db.ts` deliberately use relative `./x.ts`
+  imports so the plain-node self-checks can load them — keep those, do not
+  switch them to `@/` aliases.
+- UI strings are never hardcoded: add every key to both `lib/i18n/en.ts` and
+  `lib/i18n/de.ts` (`Dict` makes a missing key a compile error).
 
 <!-- graft:start -->
 ## Graft — repo context graph

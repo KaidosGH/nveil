@@ -8,7 +8,7 @@ import { ABUSE_REPORTS_ENABLED } from '@/lib/deployment';
 import { clientIp, RATE_LIMITS, rateLimit } from '@/lib/rate-limit';
 import { verifyKeyChecksum } from '@/lib/key-checksum';
 import { apiMessage } from '@/lib/i18n-server';
-import { readBodyCapped } from '@/lib/request-body';
+import { parseJsonBody, SECRET_BODY_CAP } from '@/lib/request-body';
 
 /** Extracts the secret ID from a pasted link; fragments/search are dropped. */
 function extractSecretId(raw: string): string | null {
@@ -41,21 +41,9 @@ export async function POST(request: NextRequest) {
 
   // Same hard byte cap as the secrets route, for the same reason:
   // Content-Length is client-supplied and absent on chunked bodies.
-  const raw = await readBodyCapped(request, 300_000);
-  if (raw === null) {
-    return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
-  }
-
-  let body: unknown;
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
-  }
-
-  const parsed = abuseReportSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  const parsed = await parseJsonBody(request, SECRET_BODY_CAP, abuseReportSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
 
   const secretId = extractSecretId(parsed.data.url);

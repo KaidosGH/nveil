@@ -4,7 +4,8 @@
 //
 // Run: node tests/request-body.test.mjs  (part of `npm run check`)
 import assert from 'node:assert/strict';
-import { readBodyCapped } from '../lib/request-body.ts';
+import { z } from 'zod';
+import { parseJsonBody, readBodyCapped } from '../lib/request-body.ts';
 
 const target = 'http://localhost/test';
 const streamOf = (...chunks) =>
@@ -62,6 +63,26 @@ const text = (s) => new TextEncoder().encode(s);
     duplex: 'half',
   });
   assert.equal(await readBodyCapped(request, 1000), '🙂'.repeat(10));
+}
+
+// parseJsonBody: every JSON route shares these exits, so pin them. Malformed
+// JSON must be a 400 — an unguarded JSON.parse used to surface as a 500.
+{
+  const schema = z.object({ key: z.string() });
+  const post = (body, headers) =>
+    new Request(target, { method: 'POST', body, headers, duplex: 'half' });
+
+  const malformed = await parseJsonBody(post(streamOf(text('{')), {}), 100, schema);
+  assert.deepEqual(malformed, { ok: false, status: 400, error: 'invalid_json' });
+
+  const valid = await parseJsonBody(post(streamOf(text('{"key":"abc"}')), {}), 100, schema);
+  assert.deepEqual(valid, { ok: true, data: { key: 'abc' } });
+
+  const wrongShape = await parseJsonBody(post(streamOf(text('{"key":1}')), {}), 100, schema);
+  assert.deepEqual(wrongShape, { ok: false, status: 400, error: 'invalid_input' });
+
+  const tooLarge = await parseJsonBody(post(streamOf(text('x'.repeat(60)), text('y'.repeat(60))), {}), 100, schema);
+  assert.deepEqual(tooLarge, { ok: false, status: 413, error: 'payload_too_large' });
 }
 
 console.log('request-body cap self-check passed');

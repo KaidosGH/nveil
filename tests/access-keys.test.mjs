@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 
 process.env.NVEIL_MANAGEMENT_KEY = 'test-management-key-0123456789abcdef';
-const { generateAccessKey, keyHash, verifyManagementKey, isKeyUsable, accessKeyCookieMaxAge } =
+const { generateAccessKey, keyHash, verifyManagementKey, isKeyUsable, accessKeyCookieMaxAge, presentedAccessKey } =
   await import('../lib/access-keys.ts');
 
 const DAY = 86_400_000;
@@ -34,5 +34,13 @@ assert.equal(accessKeyCookieMaxAge(null), 2_592_000);
 assert.ok(Math.abs(accessKeyCookieMaxAge(new Date(now + 10 * DAY)) - 10 * DAY / 1000) < 5);
 assert.ok(Math.abs(accessKeyCookieMaxAge(new Date(now + 3600_000)) - 3600) < 5);
 assert.equal(accessKeyCookieMaxAge(new Date(now - 1000)), 60, 'already-expired key still gets a minimal lifetime');
+
+// presentedAccessKey: the explicit header wins over the cookie, the cookie is
+// the fallback, and neither means ''. Both gate routes now share this, so the
+// precedence cannot diverge between them.
+const withHeaders = (headers) => new Request('http://localhost/', { headers });
+assert.equal(presentedAccessKey(withHeaders({ 'x-access-key': 'h', cookie: 'nveil-access-key=c' })), 'h');
+assert.equal(presentedAccessKey(withHeaders({ cookie: 'nveil-access-key=c; other=x' })), 'c');
+assert.equal(presentedAccessKey(withHeaders({})), '');
 
 console.log('access-keys self-check passed');

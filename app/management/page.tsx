@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { KeyRound, Loader2, Plus, Settings as SettingsIcon, Trash2 } from 'lucide-react';
+import { KeyRound, Loader2, LogOut, Plus, Settings as SettingsIcon, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label, PassphraseInput, Switch } from '@/components/ui';
+import { Input, Label, PassphraseInput, Switch } from '@/components/ui';
 import { CopyButton } from '@/components/copy-button';
 import { useI18n } from '@/components/i18n-provider';
 
@@ -26,13 +26,15 @@ type AccessKey = {
   revokedAt: string | null;
 };
 
-const STORAGE_KEY = 'nveil-management-key';
-
 /**
  * Instance management shell (management-key gated): tabs for the access-key
  * gate and runtime instance settings, with brand customization reserved for
  * later. Per-tab features render only when their gate is enabled; the tab
  * bar is hidden entirely when only one area is available.
+ *
+ * Auth mirrors the access-keys verify flow: the typed key is exchanged once
+ * for an httpOnly cookie (/api/management/session) and never handled by this
+ * page's scripts again — requests simply send credentials along.
  */
 export default function ManagementPage() {
   const { t } = useI18n();
@@ -63,18 +65,12 @@ export default function ManagementPage() {
   const [supportLinkDraft, setSupportLinkDraft] = useState(true);
   const [languageDraft, setLanguageDraft] = useState<'en' | 'de'>('en');
 
-  const authedFetch = useCallback(
-    (path: string, init?: RequestInit) => {
-      const key = sessionStorage.getItem(STORAGE_KEY) ?? '';
-      return fetch(path, { ...init, headers: { ...(init?.headers ?? {}), 'x-management-key': key } });
-    },
-    [],
-  );
-
+  // The httpOnly management cookie rides along automatically; no credential
+  // header is set from script-side state anymore.
   const loadKeys = useCallback(async () => {
     setKeysError(null);
     try {
-      const response = await authedFetch('/api/access-keys');
+      const response = await fetch('/api/access-keys');
       if (!response.ok) {
         setKeysError(ta.unreachable);
         return;
@@ -84,56 +80,59 @@ export default function ManagementPage() {
     } catch {
       setKeysError(ta.unreachable);
     }
-  }, [authedFetch, ta.unreachable]);
+  }, [ta.unreachable]);
 
-  const loadSettings = useCallback(async () => {
-    const response = await authedFetch('/api/settings');
-    if (!response.ok) return false;
+  const loadSettings = useCallback(async (): Promise<SettingsPayload | null> => {
+    const response = await fetch('/api/settings');
+    if (!response.ok) return null;
     const data = (await response.json()) as SettingsPayload;
     setSettings(data);
     setSupportLinkDraft(data.supportLink);
     setLanguageDraft(data.defaultLanguage);
-    return true;
-  }, [authedFetch]);
+    return data;
+  }, []);
 
-  // Boot: a stored management key is validated against the settings API —
-  // 200 means unlocked (and delivers the current settings), 401 means the
-  // key must be re-entered. The access-keys list is reloaded here too —
-  // otherwise a refresh showed an empty table despite valid keys.
+  // Boot: the browser either carries a valid management cookie or it does
+  // not — the settings API decides. 200 means unlocked (and delivers the
+  // current settings), 401 means the key must be typed again. The access-keys
+  // list is reloaded here too — otherwise a refresh showed an empty table
+  // despite valid keys.
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      setBooting(false);
-      return;
-    }
     (async () => {
-      const ok = await loadSettings();
-      if (!ok) sessionStorage.removeItem(STORAGE_KEY);
-      setUnlocked(ok);
+      const data = await loadSettings();
+      setUnlocked(data !== null);
       setBooting(false);
-      if (ok) void loadKeys();
+      if (data) void loadKeys();
     })();
   }, [loadSettings, loadKeys]);
 
   async function unlock() {
     setUnlockError(null);
-    // The typed key is sent directly — it lands in sessionStorage only after
-    // this request succeeds (authedFetch reads from there, which would send
-    // an empty header on the very first unlock).
-    const response = await fetch('/api/settings', {
-      headers: { 'x-management-key': keyInput },
+    const response = await fetch('/api/management/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: keyInput }),
     });
     if (!response.ok) {
-      setUnlockError(tm.invalidKey);
+      setUnlockError(response.status === 429 ? tm.unreachable : tm.invalidKey);
       return;
     }
-    const data = (await response.json()) as SettingsPayload;
-    sessionStorage.setItem(STORAGE_KEY, keyInput);
-    setSettings(data);
-    setSupportLinkDraft(data.supportLink);
-    setLanguageDraft(data.defaultLanguage);
+    setKeyInput('');
+    // The cookie is set; fetch the settings payload to enter the unlocked UI.
+    const data = await loadSettings();
+    if (!data) {
+      setUnlockError(tm.unreachable);
+      return;
+    }
     setUnlocked(true);
     if (data.accessKeysRequired) void loadKeys();
+  }
+
+  async function logout() {
+    await fetch('/api/management/session', { method: 'DELETE' }).catch(() => null);
+    setUnlocked(false);
+    setSettings(null);
+    setKeys([]);
   }
 
   async function createKey() {
@@ -141,7 +140,7 @@ export default function ManagementPage() {
     setCreating(true);
     setKeysError(null);
     try {
-      const response = await authedFetch('/api/access-keys', {
+      const response = await fetch('/api/access-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,7 +168,7 @@ export default function ManagementPage() {
     setBusyId(id);
     setKeysError(null);
     try {
-      const response = await authedFetch(`/api/access-keys/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/access-keys/${id}`, { method: 'DELETE' });
       if (response.ok) await loadKeys();
       else setKeysError(ta.actionFailed);
     } catch {
@@ -183,7 +182,7 @@ export default function ManagementPage() {
     setSaving(true);
     setSaved(false);
     try {
-      const response = await authedFetch('/api/settings', {
+      const response = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,9 +191,15 @@ export default function ManagementPage() {
         }),
       });
       if (!response.ok) {
-        // A 401 means the management key was rotated out from under this
-        // session; anything else (e.g. a database hiccup) is transient.
-        setUnlockError(response.status === 401 ? tm.invalidKey : tm.unreachable);
+        // A 401 means the management cookie was rotated out from under this
+        // session (key change/expiry); anything else is transient. Either way
+        // the unlock screen reappears — the cookie no longer authenticates.
+        if (response.status === 401) {
+          setUnlocked(false);
+          setUnlockError(tm.invalidKey);
+        } else {
+          setUnlockError(tm.unreachable);
+        }
         return;
       }
       setSettings((await response.json()) as SettingsPayload);
@@ -227,7 +232,7 @@ export default function ManagementPage() {
     return (
       <main className="mx-auto max-w-md px-4 py-12">
         <h1 className="sr-only">{tm.title}</h1>
-        <Card>
+        <Card className="animate-fade-up">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <SettingsIcon aria-hidden className="size-5" /> {tm.title}
@@ -246,7 +251,11 @@ export default function ManagementPage() {
                 }}
                 autoFocus
               />
-              {unlockError && <p className="text-sm text-destructive-foreground">{unlockError}</p>}
+              {unlockError && (
+                <p role="alert" className="text-sm text-destructive-foreground">
+                  {unlockError}
+                </p>
+              )}
             </div>
             <Button type="button" className="w-full" disabled={!keyInput} onClick={() => void unlock()}>
               {tm.unlock}
@@ -269,29 +278,47 @@ export default function ManagementPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-12">
       <h1 className="sr-only">{tm.title}</h1>
 
-      {visibleTabs.length > 1 && (
-        <nav className="mb-6 flex flex-wrap gap-1.5" aria-label={tm.title}>
+      {/* Toolbar row: tabs left, session action right. Logout sits at page
+          level — it ends the whole session, not one tab's content. */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={tm.title}>
           {visibleTabs.map((t) => (
             <button
               key={t.id}
               type="button"
+              role="tab"
+              id={`mgmt-tab-${t.id}`}
+              aria-selected={activeTab === t.id}
+              aria-controls={`mgmt-panel-${t.id}`}
+              tabIndex={activeTab === t.id ? 0 : -1}
               onClick={() => setTab(t.id)}
-              aria-current={activeTab === t.id ? 'page' : undefined}
+              onKeyDown={(e) => {
+                const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+                if (step === 0) return;
+                e.preventDefault();
+                const i = visibleTabs.findIndex((v) => v.id === activeTab);
+                const next = visibleTabs[(i + step + visibleTabs.length) % visibleTabs.length];
+                setTab(next.id);
+                document.getElementById(`mgmt-tab-${next.id}`)?.focus();
+              }}
               className={
-                'h-9 rounded-md border px-3 text-sm transition-[color,background-color] ' +
+                'h-9 rounded-md border px-3 text-sm transition-[color,background-color,border-color] ' +
                 (activeTab === t.id
-                  ? 'border-white/15 bg-primary text-primary-foreground'
+                  ? 'border-ring bg-primary font-medium text-primary-foreground'
                   : 'border-input hover:bg-muted')
               }
             >
               {t.label}
             </button>
           ))}
-        </nav>
-      )}
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={() => void logout()}>
+          <LogOut aria-hidden className="size-4" /> {tm.logout}
+        </Button>
+      </div>
 
       {activeTab === 'keys' && (
-        <Card>
+        <Card role="tabpanel" id="mgmt-panel-keys" aria-labelledby="mgmt-tab-keys">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <KeyRound aria-hidden className="size-5" /> {tm.tabs.keys}
@@ -302,20 +329,19 @@ export default function ManagementPage() {
             <div className="space-y-3">
               <Label htmlFor="new-key-label">{ta.newKeyLabel}</Label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <input
+                <Input
                   id="new-key-label"
                   value={newLabel}
                   maxLength={100}
                   onChange={(e) => setNewLabel(e.target.value)}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                   placeholder={ta.newKeyLabel}
                 />
-                <input
+                <Input
                   type="date"
                   aria-label={ta.expiresLabel}
                   value={newExpires}
                   onChange={(e) => setNewExpires(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                  className="w-auto"
                 />
                 <Button
                   type="button"
@@ -343,7 +369,11 @@ export default function ManagementPage() {
               </div>
             )}
 
-            {keysError && <p className="text-sm text-destructive-foreground">{keysError}</p>}
+            {keysError && (
+              <p role="alert" className="text-sm text-destructive-foreground">
+                {keysError}
+              </p>
+            )}
 
             {keys.length === 0 ? (
               <p className="text-sm text-muted-foreground">{ta.noKeys}</p>
@@ -352,13 +382,13 @@ export default function ManagementPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="py-2 pr-3 font-medium">{ta.labelHeader}</th>
-                      <th className="py-2 pr-3 font-medium">{ta.prefixHeader}</th>
-                      <th className="py-2 pr-3 font-medium">{ta.createdHeader}</th>
-                      <th className="py-2 pr-3 font-medium">{ta.expiresHeader}</th>
-                      <th className="py-2 pr-3 font-medium">{ta.lastUsedHeader}</th>
-                      <th className="py-2 pr-3 font-medium">{ta.statusHeader}</th>
-                      <th className="py-2 font-medium" aria-label={ta.statusHeader} />
+                      <th scope="col" className="py-2 pr-3 font-medium">{ta.labelHeader}</th>
+                      <th scope="col" className="py-2 pr-3 font-medium">{ta.prefixHeader}</th>
+                      <th scope="col" className="py-2 pr-3 font-medium">{ta.createdHeader}</th>
+                      <th scope="col" className="py-2 pr-3 font-medium">{ta.expiresHeader}</th>
+                      <th scope="col" className="py-2 pr-3 font-medium">{ta.lastUsedHeader}</th>
+                      <th scope="col" className="py-2 pr-3 font-medium">{ta.statusHeader}</th>
+                      <th scope="col" className="py-2 font-medium sr-only">{ta.actionsHeader}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -416,7 +446,7 @@ export default function ManagementPage() {
       )}
 
       {activeTab === 'settings' && (
-        <Card>
+        <Card role="tabpanel" id="mgmt-panel-settings" aria-labelledby="mgmt-tab-settings">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <SettingsIcon aria-hidden className="size-5" /> {tm.tabs.settings}
@@ -467,7 +497,7 @@ export default function ManagementPage() {
       )}
 
       {activeTab === 'branding' && (
-        <Card>
+        <Card role="tabpanel" id="mgmt-panel-branding" aria-labelledby="mgmt-tab-branding">
           <CardHeader>
             <CardTitle>{tm.tabs.branding}</CardTitle>
             <CardDescription>{tm.brandingSoon}</CardDescription>

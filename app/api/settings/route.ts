@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { ACCESS_KEYS_REQUIRED } from '@/lib/access-keys';
-import { ensureSchema } from '@/lib/db-init';
-import { requireManagement } from '@/lib/access-keys';
+import { ACCESS_KEYS_REQUIRED, requireManagement } from '@/lib/access-keys';
+import { parseJsonBody, SMALL_BODY_CAP } from '@/lib/request-body';
+import { denied } from '@/lib/api-response';
 import {
   getEffectiveDefaultLanguage,
   getEffectiveSupportLink,
@@ -25,9 +25,7 @@ async function effectiveSettings() {
 
 export async function GET(request: NextRequest) {
   const gate = await requireManagement(request);
-  if (!gate.ok) {
-    return NextResponse.json({ error: gate.error }, { status: gate.status });
-  }
+  if (!gate.ok) return denied(gate);
   return NextResponse.json(await effectiveSettings());
 }
 
@@ -38,14 +36,11 @@ const putSchema = z.object({
 
 export async function PUT(request: NextRequest) {
   const gate = await requireManagement(request);
-  if (!gate.ok) {
-    return NextResponse.json({ error: gate.error }, { status: gate.status });
-  }
+  if (!gate.ok) return denied(gate);
 
-  const raw = await request.json().catch(() => null);
-  const parsed = putSchema.safeParse(raw);
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  const parsed = await parseJsonBody(request, SMALL_BODY_CAP, putSchema);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
 
   if (parsed.data.supportLink !== undefined) {

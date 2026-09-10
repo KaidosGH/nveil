@@ -84,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <header className="px-4 pt-4 sm:px-6 sm:pt-5">
             <Link
               href="/"
-              aria-label="nveil — home"
+              aria-label={getDict(locale).common.home}
               className="inline-block rounded focus-visible:outline-2"
             >
               <Image
@@ -98,8 +98,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Link>
           </header>
           {/* min-w-0 lets this flex item shrink so inner overflow containers scroll
-              instead of stretching the page (e.g. the abuse-reports table). */}
-          <div id="main-content" className="flex min-w-0 flex-1 flex-col">{children}</div>
+              instead of stretching the page (e.g. the abuse-reports table).
+              tabIndex -1 makes the skip link's target focusable so focus actually
+              moves into it (WCAG 2.4.1). */}
+          <div id="main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">{children}</div>
           <SiteFooter />
         </I18nProvider>
       </body>

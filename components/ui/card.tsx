@@ -9,7 +9,9 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-lg font-semibold tracking-tight', className)} {...props} />;
+  // h2: every page carries an h1 (visible on the landing page, sr-only
+  // elsewhere), so card titles are the second level.
+  return <h2 className={cn('text-lg font-semibold tracking-tight', className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {

@@ -11,9 +11,9 @@ instance. Assumes the docker-compose deployment from the repository root.
 | --- | --- |
 | Is the service up? | `curl https://your-domain/api/health` → `{"status":"ok","db":"up"}`. Put an external uptime monitor on this endpoint. |
 | Container status | `docker compose ps` — app and db should show `(healthy)` (healthchecks configured in `docker-compose.yml`). |
-| Logs | `docker compose logs app --tail 100` — the app intentionally logs almost nothing (privacy); expect startup lines only. |
+| Logs | `docker compose logs app --tail 100` — the app intentionally logs almost nothing (privacy); expect startup lines and, at most, the one-time warnings below. |
 | Restart | `docker compose restart app` — in-memory rate-limit buckets reset (limits re-apply immediately). |
-| Access keys | Managed-tenant access keys are managed in [/management](/management) (management key, session-stored). Revoking a key takes effect immediately. |
+| Access keys | Managed-tenant access keys are managed in [/management](/management) (management key → httpOnly session cookie; cleared on logout or browser close). Revoking a key takes effect immediately. Unlock attempts are limited to 30/min per IP, as are the management API calls themselves. |
 
 ## 2. Abuse report handling
 
@@ -121,6 +121,7 @@ echo | openssl s_client -connect your-domain:443 2>/dev/null | openssl x509 -noo
 | --- | --- |
 | `/api/health` → `{"status":"degraded","db":"down"}` | Postgres unreachable. `docker compose ps` (db healthy?), `docker compose logs db`. The app retries per request — no restart needed once the DB is back. |
 | Container restart loops | `docker compose logs app` — usually a bad `.env` value. Fix and `docker compose up -d`. |
+| Log warning: `clientIp: no X-Forwarded-For/X-Real-IP headers` | Requests reach the app without the trusted reverse proxy, so every visitor shares one `unknown` rate-limit bucket and the limits trip as a group. Terminate TLS at the documented proxy (Caddy/nginx) and forward the headers; see the deployment section of the README. Logged once per process. |
 | Changed `POSTGRES_PASSWORD` in compose, login still fails | Credentials only apply on **first** volume initialization. Fix: `docker compose down -v` (⚠ deletes all data), then `up -d`. |
 | Reports of Outlook/Teams links not working | SafeLinks strips the `#key` fragment — recipient needs a freshly copied link or separate-key mode. Working as intended. |
 | Users report the site is slow / laggy | Point them at the **Effects: off** footer toggle (disables the WebGL background). Server-side, check `docker stats` for CPU. |
@@ -128,10 +129,13 @@ echo | openssl s_client -connect your-domain:443 2>/dev/null | openssl x509 -noo
 
 ## 7. Updates
 
+Back up **before** pulling anything, so a failed update still has a
+pre-update dump to restore:
+
 ```bash
+docker compose exec db pg_dump -U nveil nveil > pre-update-backup.sql   # before, not after
 git pull
 docker compose up -d --build     # rebuilds the image, restarts with zero data loss
-docker compose exec db pg_dump -U nveil nveil > pre-update-backup.sql   # before, not after
 ```
 
 Watch the Next.js release notes and re-run `npm audit` between deployments
