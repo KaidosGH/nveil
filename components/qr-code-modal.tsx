@@ -137,8 +137,13 @@ export function QrCodeModal({
   }, [open, payload]);
 
   function downloadSvg() {
+    // TextEncoder + byte-wise btoa: the UTF-8-safe base64 of the SVG, without
+    // the deprecated unescape() escape-hatch.
+    const bytes = new TextEncoder().encode(svg);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
     const a = document.createElement('a');
-    a.href = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+    a.href = `data:image/svg+xml;base64,${btoa(binary)}`;
     a.download = 'nveil-qr.svg';
     a.click();
   }
@@ -161,7 +166,12 @@ export function QrCodeModal({
               on-screen URL. */}
           {/* aspect-square reserves the QR's box before the SVG arrives, so the
               modal doesn't grow from a 1px strip when generation finishes. */}
-          <div className="aspect-square w-64 rounded-xl bg-white p-1.5 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div
+            role="img"
+            aria-label={t.result.qrLabel}
+            className="aspect-square w-64 rounded-xl bg-white p-1.5 [&_svg]:h-auto [&_svg]:w-full"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
         </div>
         <p className="text-center text-xs text-muted-foreground">{t.result.qrHint}</p>
         <div className="grid grid-cols-2 gap-2">

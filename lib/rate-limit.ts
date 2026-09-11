@@ -26,6 +26,8 @@ export const RATE_LIMITS = {
   deletePerMinute: envLimit('RATE_LIMIT_DELETE_PER_MINUTE', 60),
   abuseReportsPerHour: envLimit('RATE_LIMIT_ABUSE_REPORTS_PER_HOUR', 10),
   abuseAdminPerMinute: envLimit('RATE_LIMIT_ABUSE_ADMIN_PER_MINUTE', 30),
+  accessKeyVerifyPerMinute: envLimit('RATE_LIMIT_ACCESS_KEY_PER_MINUTE', 10),
+  managementPerMinute: envLimit('RATE_LIMIT_MANAGEMENT_PER_MINUTE', 30),
 } as const;
 
 export function rateLimit(
@@ -181,9 +183,22 @@ function ensureCfRanges(): Promise<{ lo: bigint; hi: bigint }[]> {
  * by direct hits. Callers await this because the CF ranges load once per
  * process (built-in fallback list; refreshable via NVEIL_CLOUDFLARE_RANGES_URL).
  */
+let noProxyWarned = false;
+
 export async function clientIp(headers: Headers): Promise<string> {
   const forwarded = headers.get('x-forwarded-for');
   const peerIp = forwarded ? forwarded.split(',').pop()!.trim() : (headers.get('x-real-ip') ?? '');
+
+  // No proxy headers means this instance is reached directly (undocumented
+  // deployment) — every visitor would share the single 'unknown' bucket and
+  // trip the limits as a group. Warn once so the operator sees the cause.
+  if (!peerIp && !noProxyWarned) {
+    noProxyWarned = true;
+    console.warn(
+      'clientIp: no X-Forwarded-For/X-Real-IP headers — requests appear to arrive without the ' +
+        'trusted reverse proxy. All visitors share one rate-limit bucket; see the deployment docs.',
+    );
+  }
 
   const cfConnecting = headers.get('cf-connecting-ip');
   if (cfConnecting && peerIp) {

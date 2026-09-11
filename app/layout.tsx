@@ -9,6 +9,7 @@ import { I18nProvider } from '@/components/i18n-provider';
 import { getAnnouncement } from '@/lib/announcement';
 import { getDict } from '@/lib/i18n/index';
 import { localeFromParts } from '@/lib/i18n-server';
+import { getEffectiveDefaultLanguage } from '@/lib/instance-settings';
 import './globals.css';
 
 // Matches the forced dark theme so mobile browser chrome blends in, and
@@ -35,7 +36,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
-  const locale = localeFromParts(cookieStore.get('nveil-lang')?.value);
+  const locale = localeFromParts(
+    cookieStore.get('nveil-lang')?.value,
+    await getEffectiveDefaultLanguage(),
+  );
   const announcement = await getAnnouncement();
 
   // Pre-CSS canvas color: the browser paints this inline background before
@@ -80,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <header className="px-4 pt-4 sm:px-6 sm:pt-5">
             <Link
               href="/"
-              aria-label="nveil — home"
+              aria-label={getDict(locale).common.home}
               className="inline-block rounded focus-visible:outline-2"
             >
               <Image
@@ -94,8 +98,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Link>
           </header>
           {/* min-w-0 lets this flex item shrink so inner overflow containers scroll
-              instead of stretching the page (e.g. the abuse-reports table). */}
-          <div id="main-content" className="flex min-w-0 flex-1 flex-col">{children}</div>
+              instead of stretching the page (e.g. the abuse-reports table).
+              tabIndex -1 makes the skip link's target focusable so focus actually
+              moves into it (WCAG 2.4.1). */}
+          <div id="main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">{children}</div>
           <SiteFooter />
         </I18nProvider>
       </body>

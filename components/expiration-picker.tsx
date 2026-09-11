@@ -1,11 +1,13 @@
 'use client';
 
+import { useId } from 'react';
 import { EXPIRATION_PRESETS, type ExpirationChoice } from '@/lib/validation';
-import { cn } from '@/lib/utils';
-import { Input, Label } from '@/components/ui';
+import { cn, radioGroupKeyDown } from '@/lib/utils';
+import { Input } from '@/components/ui';
 import { useI18n } from '@/components/i18n-provider';
 
-const PRESET_IDS: ExpirationChoice[] = ['5m', '1h', '24h', '7d', '30d', 'custom'];
+// Derived from the preset table so an added/removed preset can't drift.
+const PRESET_IDS: ExpirationChoice[] = [...Object.keys(EXPIRATION_PRESETS), 'custom'] as ExpirationChoice[];
 
 interface ExpirationPickerProps {
   preset: ExpirationChoice;
@@ -21,22 +23,29 @@ export function ExpirationPicker({
   onCustomMinutesChange,
 }: ExpirationPickerProps) {
   const { t } = useI18n();
+  const labelId = useId();
 
   return (
     <div className="space-y-2">
-      <Label>{t.create.expiryLabel}</Label>
-      <div role="radiogroup" aria-label={t.create.expiryLabel} className="flex flex-wrap gap-1.5">
+      <span id={labelId} className="text-sm font-medium leading-none">{t.create.expiryLabel}</span>
+      <div
+        role="radiogroup"
+        aria-labelledby={labelId}
+        onKeyDown={(e) => radioGroupKeyDown(e, PRESET_IDS, preset, onPresetChange)}
+        className="flex flex-wrap gap-1.5"
+      >
         {PRESET_IDS.map((p) => (
           <button
             key={p}
             type="button"
             role="radio"
             aria-checked={preset === p}
+            tabIndex={preset === p ? 0 : -1}
             onClick={() => onPresetChange(p)}
             className={cn(
-              'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,box-shadow,transform] active:scale-[0.97]',
+              'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
               preset === p
-                ? 'border-white/15 bg-primary text-primary-foreground ring-1 ring-inset ring-white/10'
+                ? 'border-ring bg-primary font-medium text-primary-foreground'
                 : 'border-input hover:bg-muted',
             )}
           >
@@ -53,7 +62,7 @@ export function ExpirationPicker({
             value={customMinutes}
             onChange={(e) => onCustomMinutesChange(Number(e.target.value))}
             className="w-28"
-            aria-label={t.create.expiryLabel}
+            aria-label={t.create.customUnit}
           />
           <span className="text-sm text-muted-foreground">{t.create.customUnit}</span>
         </div>

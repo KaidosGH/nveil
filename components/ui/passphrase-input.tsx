@@ -3,6 +3,7 @@
 import { forwardRef, InputHTMLAttributes, useId, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/components/i18n-provider';
 
 /**
  * Passphrase input: a text field with a show/hide toggle, deliberately NOT
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils';
  */
 export const PassphraseInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function PassphraseInput({ className, ...props }, ref) {
+    const { t } = useI18n();
     const [revealed, setRevealed] = useState(false);
     const toggleId = useId();
 
@@ -42,10 +44,10 @@ export const PassphraseInput = forwardRef<HTMLInputElement, InputHTMLAttributes<
         <button
           type="button"
           id={toggleId}
-          aria-label={revealed ? 'Hide passphrase' : 'Show passphrase'}
+          aria-label={revealed ? t.common.hidePassphrase : t.common.showPassphrase}
           aria-pressed={revealed}
           onClick={() => setRevealed((v) => !v)}
-          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-[color,background-color,box-shadow,transform] hover:bg-muted active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-ring"
+          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-[color,background-color,transform] hover:bg-muted active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-ring"
         >
           {revealed ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
         </button>

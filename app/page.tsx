@@ -9,15 +9,27 @@ export default async function LandingPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center px-4 py-12 text-center">
-      <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">{t.title}</h1>
-      <p className="mt-4 max-w-xl text-lg leading-relaxed text-foreground">{t.subtitle}</p>
-      <Link href="/create" className={buttonVariants({ size: 'lg' }) + ' mt-8'}>
+      <h1 className="animate-fade-up text-balance text-4xl font-semibold tracking-tight sm:text-5xl">{t.title}</h1>
+      <p className="animate-fade-up mt-4 max-w-xl text-lg leading-relaxed text-foreground" style={{ animationDelay: '40ms' }}>{t.subtitle}</p>
+      <Link
+        href="/create"
+        className={buttonVariants({ size: 'lg' }) + ' animate-fade-up mt-8'}
+        style={{ animationDelay: '80ms' }}
+      >
         {t.cta}
       </Link>
 
+      {/* First-visit cascade: hero, CTA, then the step cards, each following
+          the previous by 60ms (note card closes it out). The delay is inline
+          so the stagger rides the existing animate-fade-up token; reduced
+          motion already swaps it for an opacity-only fade. */}
       <ol className="mt-12 grid w-full gap-6 text-left sm:grid-cols-3">
         {t.steps.map((step, i) => (
-          <li key={step.title} className="rounded-lg border bg-card p-4">
+          <li
+            key={step.title}
+            className="animate-fade-up rounded-lg border bg-card p-4"
+            style={{ animationDelay: `${140 + i * 60}ms` }}
+          >
             <div className="text-sm font-medium text-muted-foreground">{i + 1}</div>
             <div className="mt-1 font-semibold">{step.title}</div>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
@@ -25,7 +37,9 @@ export default async function LandingPage() {
         ))}
       </ol>
 
-      <p className="mt-10 max-w-lg text-sm leading-relaxed text-foreground">{t.note}</p>
+      <p className="animate-fade-up mt-10 max-w-lg text-sm leading-relaxed text-foreground" style={{ animationDelay: '320ms' }}>
+        {t.note}
+      </p>
     </main>
   );
 }

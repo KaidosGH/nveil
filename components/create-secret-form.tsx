@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ import {
   wrapKeyWithPassword,
 } from '@/lib/crypto';
 import { EXPIRATION_PRESETS, MAX_CONTENT_BYTES, type ExpirationChoice } from '@/lib/validation';
-import { cn } from '@/lib/utils';
+import { cn, radioGroupKeyDown } from '@/lib/utils';
 
 type FormValues = {
   content: string;
@@ -41,6 +41,7 @@ const KEY_DELIVERY: KeyDelivery[] = ['link', 'separate', 'password'];
 
 export function CreateSecretForm() {
   const { t } = useI18n();
+  const keyDeliveryLabelId = useId();
   const [preset, setPreset] = useState<ExpirationChoice>('24h');
   const [customMinutes, setCustomMinutes] = useState(60);
   const [keyDelivery, setKeyDelivery] = useState<KeyDelivery>('link');
@@ -49,12 +50,17 @@ export function CreateSecretForm() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  // Create-key gate (managed instances): when the server demands an access
+  // Access-key gate (managed instances): when the server demands an access
   // key, the form collects it once, swaps it for an httpOnly cookie via the
   // verify endpoint, and retries — the key itself is never kept in state.
   const [needsKey, setNeedsKey] = useState(false);
   const [accessKey, setAccessKey] = useState('');
   const [accessKeyError, setAccessKeyError] = useState(false);
+  // Which key is active in this browser (display prefix + label only — the
+  // httpOnly cookie is unreadable by design). Surfaced in the Advanced
+  // section together with replace/forget actions.
+  const [activeKeyInfo, setActiveKeyInfo] = useState<{ prefix: string; label: string } | null>(null);
+  const [showReplace, setShowReplace] = useState(false);
 
   // Validation messages are locale-dependent, so the schema is built per render.
   const formSchema = useMemo(
@@ -75,6 +81,21 @@ export function CreateSecretForm() {
     resolver: zodResolver(formSchema),
     defaultValues: { content: '', burnAfterRead: true },
   });
+
+  // Which access key is active in this browser, if any: surfaced in Advanced
+  // (404 = gate off or no key on this browser → nothing to show).
+  const refreshActiveKey = useCallback(async () => {
+    try {
+      const response = await fetch('/api/access-keys/session');
+      setActiveKeyInfo(response.ok ? ((await response.json()) as { prefix: string; label: string }) : null);
+    } catch {
+      setActiveKeyInfo(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshActiveKey();
+  }, [refreshActiveKey]);
 
   /**
    * The card is formless (no <form> — see the comment at the layout), so
@@ -133,10 +154,10 @@ export function CreateSecretForm() {
         }),
       });
       if (response.status === 403) {
-        // Create-key gate: collect the access key once, swap it for an
+        // Access-key gate: collect the access key once, swap it for an
         // httpOnly cookie via the verify endpoint, then retry the creation.
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        if (data?.error === 'create_key_required') {
+        if (data?.error === 'access_key_required') {
           setNeedsKey(true);
           setSubmitting(false);
           return;
@@ -167,21 +188,40 @@ export function CreateSecretForm() {
     }
   }
 
-  async function unlockAccessKey() {
-    setAccessKeyError(false);
-    const response = await fetch('/api/create-keys/verify', {
+  /** Validates the pasted key and moves it into the httpOnly cookie. */
+  async function verifyAccessKey(): Promise<boolean> {
+    const response = await fetch('/api/access-keys/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: accessKey.trim() }),
     });
     if (!response.ok) {
       setAccessKeyError(true);
-      return;
+      return false;
     }
-    // The verify endpoint set the httpOnly cookie — retry, now authorized.
-    setNeedsKey(false);
+    // Refresh the Advanced display of the active key.
     setAccessKey('');
-    await submit();
+    void refreshActiveKey();
+    return true;
+  }
+
+  // 403-retry path: verify, then re-run the creation.
+  async function unlockAccessKey() {
+    if (await verifyAccessKey()) {
+      setNeedsKey(false);
+      await submit();
+    }
+  }
+
+  // Advanced replace path: verify only — no creation.
+  async function replaceAccessKey() {
+    if (await verifyAccessKey()) setShowReplace(false);
+  }
+
+  async function forgetAccessKey() {
+    await fetch('/api/access-keys/session', { method: 'DELETE' }).catch(() => {});
+    setActiveKeyInfo(null);
+    setShowReplace(false);
   }
 
   if (result) {
@@ -205,6 +245,7 @@ export function CreateSecretForm() {
 
   const content = form.watch('content');
   const contentBytes = new TextEncoder().encode(content ?? '').byteLength;
+  const contentError = form.formState.errors.content?.message;
 
   return (
     <Card>
@@ -225,6 +266,8 @@ export function CreateSecretForm() {
               rows={8}
               className="bg-background/40 font-mono"
               placeholder={t.create.contentPlaceholder}
+              aria-invalid={contentError ? true : undefined}
+              aria-describedby={contentError ? 'content-error' : undefined}
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !submitting) {
                   submit();
@@ -233,7 +276,7 @@ export function CreateSecretForm() {
               {...form.register('content')}
             />
             <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
-              <p>{form.formState.errors.content?.message}</p>
+              <p id="content-error">{contentError}</p>
               <span className="whitespace-nowrap tabular-nums">
                 {(contentBytes / 1024).toFixed(1)} / 100 KB
               </span>
@@ -263,21 +306,74 @@ export function CreateSecretForm() {
             <summary className="cursor-pointer text-sm text-muted-foreground">
               {t.create.advanced}
             </summary>
-            <div className="mt-4 space-y-3">
+            {/* Enter-only disclosure animation (reduced-motion: opacity only);
+                a native <details> hides its content with display:none, so the
+                transition is supplied by @starting-style in globals.css. */}
+            <div className="disclosure mt-4 space-y-3">
+              {activeKeyInfo && (
+                <div className="space-y-2 rounded-md border border-border/60 p-3">
+                  <p className="text-sm font-medium leading-none">{t.create.accessKeyActive}</p>
+                  <p className="text-xs text-muted-foreground">{t.create.accessKeyActiveDesc}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="rounded bg-muted px-2 py-1 font-mono text-xs">
+                      {activeKeyInfo.prefix}…
+                    </code>
+                    <span className="text-xs text-muted-foreground">{activeKeyInfo.label}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowReplace((v) => !v)}
+                    >
+                      {t.create.accessKeyReplace}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => void forgetAccessKey()}>
+                      {t.create.accessKeyForget}
+                    </Button>
+                  </div>
+                  {showReplace && (
+                    <div className="space-y-2">
+                      <Label htmlFor="replace-access-key">{t.create.accessKeyLabel}</Label>
+                      <PassphraseInput
+                        id="replace-access-key"
+                        name="replace_access_key"
+                        value={accessKey}
+                        onChange={(e) => setAccessKey(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && accessKey.trim()) void replaceAccessKey();
+                        }}
+                      />
+                      {accessKeyError && (
+                        <p role="alert" className="text-sm text-destructive-foreground">
+                          {t.create.accessKeyInvalid}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
-                <Label>{t.create.keyDeliveryLabel}</Label>
-                <div role="radiogroup" aria-label={t.create.keyDeliveryLabel} className="flex flex-wrap gap-1.5">
+                <span id={keyDeliveryLabelId} className="text-sm font-medium leading-none">{t.create.keyDeliveryLabel}</span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby={keyDeliveryLabelId}
+                  onKeyDown={(e) => radioGroupKeyDown(e, KEY_DELIVERY, keyDelivery, setKeyDelivery)}
+                  className="flex flex-wrap gap-1.5"
+                >
                   {KEY_DELIVERY.map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       role="radio"
                       aria-checked={keyDelivery === mode}
+                      tabIndex={keyDelivery === mode ? 0 : -1}
                       onClick={() => setKeyDelivery(mode)}
                       className={cn(
-                        'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,box-shadow,transform] active:scale-[0.97]',
+                        'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
                         keyDelivery === mode
-                          ? 'border-white/15 bg-primary text-primary-foreground ring-1 ring-inset ring-white/10'
+                          ? 'border-ring bg-primary font-medium text-primary-foreground'
                           : 'border-input hover:bg-muted',
                       )}
                     >
@@ -372,7 +468,10 @@ export function CreateSecretForm() {
             size="lg"
             className="w-full"
             loading={submitting}
-            disabled={submitting}
+            // While the access-key prompt is open, creation is gated: Unlock
+            // verifies the key and auto-retries, so this button stays out of
+            // the way until then.
+            disabled={submitting || needsKey}
             onClick={() => submit()}
           >
             {submitting ? t.create.encrypting : t.create.create}

@@ -6,7 +6,7 @@ Self-hosted, zero-knowledge ephemeral secrets sharing. Share passwords, API keys
   <img src="docs/screenshot-landing.png" alt="nveil landing page — hero, demo banner and the Ribbon Field background" width="800">
 </p>
 
-The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookie is a functional one storing your language choice (managed instances with the create-key gate add an httpOnly cookie holding the instance access key).
+The server only ever stores **ciphertext**: it never sees the plaintext content, the decryption key, or the URL fragment that carries it. No tracking, no analytics, no third-party requests, no persistent access logs — the only cookies are functional: your language choice, plus httpOnly cookies for the access key and management session on managed instances (see [Security notes](#security-notes)).
 
 **Try it live:** a public demo runs at [demo.nveil.app](https://demo.nveil.app) — the same software you would host. By zero-knowledge design it cannot read the secrets shared through it (keys never leave the browser), but it is still a demo: secrets there are wiped regularly, so host your own for real use (see [Deployment](#deployment-docker)).
 
@@ -20,15 +20,16 @@ Source: [github.com/KaidosGH/nveil](https://github.com/KaidosGH/nveil)
 
 - **End-to-end encrypted** — AES-256-GCM entirely in the browser (Web Crypto API, no third-party crypto libraries)
 - **Burn after reading** — the first read with the correct key atomically consumes the secret server-side; concurrent or later readers get nothing, and a confirmation step prevents accidental consumption
-- **Expiring secrets** — 5 minutes to 30 days, auto-deleted
+- **Expiring secrets** — 5 minutes to 30 days in the UI (the server accepts any expiry up to 31 days), auto-deleted
 - **Key separation mode** — share the link and the decryption key through different channels
 - **Password protection** — an optional password wraps the decryption key (PBKDF2-SHA256, 600k iterations + AES-GCM); the link alone is not enough, and the password never leaves the creator's browser
 - **QR codes** — share the secret or management link optically; the QR encodes exactly the URL shown on screen
 - **Management links** — delete a secret before it expires, without revealing it
 - **Abuse reporting** — public report dialog and a key-protected operator queue
+- **Access-key gate (managed instances)** — restrict secret creation to holders of revocable access keys, managed in a key-protected UI; reads stay open for recipients
 - **Bilingual UI** (English / German, toggle in the footer)
 - **Legal pages** — fill-in templates for privacy notice, imprint, cookies and terms; the footer links only the pages you actually provide (see "Legal pages" below)
-- **Zero tracking** — no analytics, no third-party requests; the only cookie stores the language choice (`nveil-lang`); dark UI with a performance-effects toggle
+- **Zero tracking** — no analytics, no third-party requests; cookies are functional only (`nveil-lang` for the language choice, plus httpOnly `nveil-access-key` / `nveil-management` on managed instances); dark UI with a performance-effects toggle
 
 ## How it works
 
@@ -104,14 +105,23 @@ through to the app container).
 | `NVEIL_REPORT_ABUSE_KEY` | — | Operator key for the queue (≥ 32 chars; required when abuse reporting is on) |
 | `NVEIL_ABUSE_EMAIL` | — | Optional dedicated abuse contact in `security.txt` |
 | `NVEIL_SUPPORT_LINK` | `true` | Shows the "Support this project" and GitHub footer links (`false` hides both, e.g. for white-labeled instances) |
-| `NVEIL_CREATE_KEYS` | off | `require` gates secret creation behind access keys managed in `/create-keys` (reads stay open) |
-| `NVEIL_MANAGEMENT_KEY` | — | Operator key for the create-keys UI (≥ 32 chars; required when the gate is on) |
+| `NVEIL_ACCESS_KEYS` | off | `require` gates secret creation behind access keys managed in `/management` (reads stay open) |
+| `NVEIL_MANAGEMENT_KEY` | — | Operator key for `/management` and `/api/settings` (≥ 32 chars; required by the access-key gate, and by the runtime instance settings used when no gate is on) |
 | `RATE_LIMIT_CREATE_PER_HOUR` | `30` | Secret creation limit per client IP |
 | `NVEIL_CLOUDFLARE_RANGES_URL` | built-in list | Refresh source for the Cloudflare edge IPs used to validate `CF-Connecting-IP` |
 | `RATE_LIMIT_VIEW_PER_MINUTE` | `120` | View limit per client IP |
 | `RATE_LIMIT_DELETE_PER_MINUTE` | `60` | Delete limit per client IP |
 | `RATE_LIMIT_ABUSE_REPORTS_PER_HOUR` | `10` | Abuse report limit per client IP (when abuse reporting is on) |
 | `RATE_LIMIT_ABUSE_ADMIN_PER_MINUTE` | `30` | Operator queue action limit per client IP (raise for large bulk deletes) |
+| `RATE_LIMIT_ACCESS_KEY_PER_MINUTE` | `10` | Access-key verify/session attempts per client IP |
+| `RATE_LIMIT_MANAGEMENT_PER_MINUTE` | `30` | `/management` unlock and management API requests per client IP |
+
+Instance settings (footer support links, default language) can also be
+changed at runtime in [/management](/management) — unlocked with
+`NVEIL_MANAGEMENT_KEY`; env values apply as defaults until overridden. The
+override is persisted in the database (`instance_settings`). The
+`/management` shell has tabs for the access keys (shown only when the gate is
+on), the settings above, and branding (a placeholder for now).
 
 ### Legal pages (privacy notice, imprint, cookies, terms)
 
@@ -162,11 +172,17 @@ footer links can be hidden with `NVEIL_SUPPORT_LINK=false`.
 
 | Method | Route | Description |
 | --- | --- | --- |
-| POST | `/api/secrets` | Create (`{ ciphertext, iv, keyChecksum, creatorTokenHash, burnAfterRead, expiresAt }`, plus the password envelope when `hasPassword`) → `{ id }`, 201 |
+| POST | `/api/secrets` | Create (`{ ciphertext, iv, keyChecksum, creatorTokenHash, burnAfterRead, expiresAt }`, plus the password envelope when `hasPassword`) → `{ id }`, 201. With the access-key gate on, the request must also carry a valid key via the `x-access-key` header or the `nveil-access-key` cookie |
 | GET | `/api/secrets/{id}` | Fetch payload + metadata. Payload reads require the `x-key-checksum` header matching the stored key hash (403 otherwise) and consume burn-after-read secrets. A valid `x-creator-token` header instead returns manage metadata only (the payload is deliberately unreachable without the key). `?meta=1` keyless returns status flags (burn, password) and, for password-protected secrets, the wrapped key envelope. |
 | DELETE | `/api/secrets/{id}` | Delete — always requires a valid `x-creator-token` header |
 | POST | `/api/abuse-reports` | Report abuse (`{ url, reason? }`; an `x-key-checksum` header marks the report witness-verified) — enabled via `NVEIL_REPORT_ABUSE`; answers a uniform 202 |
 | GET | `/api/abuse-reports/list` | Operator queue (`x-abuse-key` header; `?includeResolved` also returns closed reports) |
+| POST | `/api/management/session` | Exchange the management key once for an httpOnly session cookie (the /management UI flow); `DELETE` logs out. The management API also accepts the raw key via the `x-management-key` header |
+| GET / POST | `/api/access-keys` | Access-key management for the gate: list, create (raw key returned once) — management key required |
+| DELETE | `/api/access-keys/{id}` | Revoke an access key (management key required) |
+| POST | `/api/access-keys/verify` | Validate a pasted access key and move it into the httpOnly `nveil-access-key` cookie (the create-page unlock) |
+| GET / DELETE | `/api/access-keys/session` | Active key's prefix/label; `DELETE` forgets it on this browser |
+| GET / PUT | `/api/settings` | Instance settings runtime overrides (footer support links, default language) — management key required |
 | POST | `/api/abuse-reports/{id}/resolve` | Close a report without touching the secret (operator) |
 | POST | `/api/abuse-reports/{id}/delete-secret` | Delete the reported secret and close the report (operator) |
 | GET | `/.well-known/security.txt` | RFC 9116 security contact (from `NVEIL_CONTACT_EMAIL` / `NVEIL_ABUSE_EMAIL`) |
@@ -190,12 +206,12 @@ days, and check the abuse queue when reports arrive.
 - All crypto is `crypto.subtle` (AES-256-GCM, 96-bit IV); keys and creator tokens are 256-bit random.
 - Creator tokens are stored as SHA-256 hashes and compared with `timingSafeEqual`.
 - Strict CSP with nonces, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, HSTS; secrets render as plain text by default; optional markdown rendering goes through `rehype-sanitize` with a structural allowlist (raw HTML is never executed).
-- Request bodies are capped at 300 KB for the JSON endpoints — enforced while reading the body, independent of `Content-Length`, so chunked transfer cannot bypass the cap. The reverse-proxy examples additionally cap bodies at 1 MB as defense in depth; the Cloudflare Tunnel example cannot (cloudflared has no body-size option), which is acceptable because the app-side cap holds everywhere.
+- Request bodies are capped while reading: 300 KB for `/api/secrets` and `/api/abuse-reports`, 4 KB for access-key admin, 1 KB for settings and the management session — enforced independent of `Content-Length`, so chunked transfer cannot bypass the cap. The reverse-proxy examples additionally cap bodies at 1 MB as defense in depth; the Cloudflare Tunnel example cannot (cloudflared has no body-size option), which is acceptable because the app-side cap holds everywhere.
 - Password-protected secrets: the server only stores/serves the PBKDF2-wrapped key envelope, so offline guessing is bounded by 600k-iteration PBKDF2 — the password's strength carries the security.
 - Rate limiting is in-memory: fine for a single instance; multi-replica deployments should move it to Redis.
 - Never log plaintext or keys. Plaintext exists only in the browser's memory of the two parties.
 - Abuse reports store only the secret ID, an optional reason and timestamps — never reporter IPs, fragments or secret contents. Reports are only visible to holders of `NVEIL_REPORT_ABUSE_KEY`.
-- Optional create-key gate (managed instances): secret creation requires a 256-bit access key; only its SHA-256 hash, a label and lifecycle timestamps are stored — secrets are never linked to keys, and the key travels in an `httpOnly` cookie scripts cannot read.
+- Optional access-key gate (managed instances): secret creation requires a 256-bit access key; only its SHA-256 hash, a label and lifecycle timestamps are stored — secrets are never linked to keys, and the key travels in an `httpOnly` cookie scripts cannot read.
 
 ## AI-assisted development
 
@@ -212,13 +228,18 @@ publicly.
 ```bash
 npm run dev      # dev server (relaxed CSP for hot reload)
 npm run build    # production build
-npm run check    # self-checks: crypto round trip, IP spoof protection, body cap, markdown sanitizer, legal loader, schema drift
+npm run check    # self-checks: crypto round trip, IP spoof protection, body cap, access-key/management-key verification, markdown sanitizer, legal loader, schema drift
 ```
 
-Both test suites run as one command — the orchestrator (`tests/orchestrate.mjs`)
-spins up a throwaway Postgres (Docker), builds the app if no build exists yet,
-starts a production server on a free port, runs the suite, and tears everything
-down. The scratch database is a `--rm` container with a random password: dev
+The API and browser suites share one orchestrator (`tests/orchestrate.mjs`):
+it spins up a throwaway Postgres (Docker), builds the app if no build exists
+yet, starts a production server on a free port, runs the suite, and tears
+everything down. A third suite covers the access-key gate
+(`tests/access-keys.e2e.mjs`): CI starts a server with `NVEIL_ACCESS_KEYS=require`
+and a management key, then runs it via
+`BASE_URL=… NVEIL_MANAGEMENT_KEY=… node tests/access-keys.e2e.mjs`.
+
+The scratch database is a `--rm` container with a random password: dev
 data and `.env` are never touched, nothing persists after the run (`KEEP_DB=1`
 keeps it around for debugging):
 

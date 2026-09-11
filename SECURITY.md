@@ -18,10 +18,17 @@ write a useful report:
   in the browser; the decryption key lives in the URL fragment and is never
   sent to the server.
 - Burn-after-read consumption is a single atomic server-side delete.
-- Optional create-key gate (managed instances): creation requires a 256-bit
+- Optional access-key gate (managed instances): creation requires a 256-bit
   access key; only its SHA-256 hash, a label and lifecycle timestamps are
   stored. Secrets are never linked to keys, and the key is held in an
   httpOnly cookie (never readable by scripts).
+- Management key (`NVEIL_MANAGEMENT_KEY`, >= 32 chars): unlocks `/management`,
+  the access-key admin API and the runtime instance settings. The browser
+  exchanges it once for an httpOnly `nveil-management` session cookie (gone on
+  logout or browser close); API clients may instead send the `x-management-key`
+  header. Unlock and API calls are rate-limited per IP. It is a bearer
+  credential: anyone who learns it can administer the instance, so treat it
+  like the deployment password.
 - Password-protected secrets never send the password; only a PBKDF2-wrapped
   content key envelope is stored.
 - The threat model assumes TLS and exactly one trusted reverse proxy in front

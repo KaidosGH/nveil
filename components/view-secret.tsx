@@ -375,7 +375,7 @@ export function ViewSecret({
   }
 
   return (
-    <Card>
+    <Card className="animate-fade-up">
       <CardHeader>
         <CardTitle>{t.view.readyTitle}</CardTitle>
         <CardDescription>{t.view.readyDesc}</CardDescription>
@@ -387,9 +387,8 @@ export function ViewSecret({
           </p>
           <button
             type="button"
-            // The label names the TARGET mode; aria-pressed reflects the
-            // current one (plain = not rendered = false).
-            aria-pressed={renderMode === 'markdown'}
+            // The visible label already names the mode this button switches
+            // to; pairing it with aria-pressed would contradict that name.
             onClick={() => setRenderMode(renderMode === 'plain' ? 'markdown' : 'plain')}
             className="h-8 shrink-0 rounded border border-border/60 px-2.5 font-mono text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
           >
@@ -399,11 +398,13 @@ export function ViewSecret({
         {renderMode === 'plain' ? (
           // font-mono: secrets are passwords/keys/code; mono makes
           // character-counting reliable and matches the creator's textarea.
-          <div className="whitespace-pre-wrap break-words rounded-md border border-input bg-background/40 px-4 py-3 font-mono text-sm leading-relaxed">
+          // animate-crossfade: the mode swap overlaps two states, so a blur
+          // bridges them into one perceived morph.
+          <div className="animate-crossfade whitespace-pre-wrap break-words rounded-md border border-input bg-background/40 px-4 py-3 font-mono text-sm leading-relaxed">
             {state.content}
           </div>
         ) : (
-          <div className="rounded-md border border-input bg-background/40 px-4 py-3">
+          <div className="animate-crossfade rounded-md border border-input bg-background/40 px-4 py-3">
             <MarkdownRenderer content={state.content} />
           </div>
         )}

@@ -151,7 +151,7 @@ export default function AbuseReportsPage() {
     return (
       <main className="mx-auto max-w-md px-4 py-12">
         <h1 className="sr-only">{ta.unlockTitle}</h1>
-        <Card>
+        <Card className="animate-fade-up">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldAlert aria-hidden className="size-5" /> {ta.unlockTitle}
@@ -183,7 +183,7 @@ export default function AbuseReportsPage() {
                 autoFocus
               />
             </div>
-            {error && <p className="text-sm text-destructive-foreground">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive-foreground">{error}</p>}
             <Button
               type="button"
               className="w-full"
@@ -203,7 +203,7 @@ export default function AbuseReportsPage() {
   return (
     <main className="mx-auto w-full min-w-0 max-w-4xl px-4 py-12">
       <h1 className="sr-only">{ta.title}</h1>
-      <Card>
+      <Card className="animate-fade-up">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -235,8 +235,8 @@ export default function AbuseReportsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <p className="text-sm text-destructive-foreground">{error}</p>}
-          {bulkResult && <p className="text-sm">{bulkResult}</p>}
+          {error && <p role="alert" className="text-sm text-destructive-foreground">{error}</p>}
+          {bulkResult && <p role="status" className="text-sm">{bulkResult}</p>}
 
           {reports.length === 0 && <p className="text-sm text-muted-foreground">{ta.noReports}</p>}
 

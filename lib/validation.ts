@@ -62,3 +62,6 @@ export const abuseReportSchema = z.object({
   url: z.string().min(1).max(500),
   reason: z.string().max(500).nullish(),
 });
+
+/** Key-paste body shared by /api/access-keys/verify and /api/management/session. */
+export const keyBodySchema = z.object({ key: z.string().min(1).max(200) });

@@ -17,10 +17,33 @@ function error(status: number, code: string, message: string, headers?: HeadersI
 // intermediate proxy must never reuse a cached response.
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
+type SecretRow = typeof secrets.$inferSelect;
+
+/**
+ * The payload shape is identical for a burned and an untouched read; only the
+ * row source differs. One mapper so a new field can't be added to one branch
+ * and forgotten in the other. The wrapped key envelope is exposed only for
+ * password-protected secrets.
+ */
+function payload(s: SecretRow) {
+  return {
+    ciphertext: s.ciphertext,
+    iv: s.iv,
+    hasPassword: s.hasPassword,
+    wrappedKey: s.hasPassword ? s.wrappedKey : undefined,
+    wrapIv: s.hasPassword ? s.wrapIv : undefined,
+    wrapSalt: s.hasPassword ? s.wrapSalt : undefined,
+    burnAfterRead: s.burnAfterRead,
+    createdAt: s.createdAt,
+    expiresAt: s.expiresAt,
+    viewedAt: s.viewedAt,
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const limit = rateLimit(`view:${await clientIp(request.headers)}`, RATE_LIMITS.viewPerMinute, 60 * 1000);
   if (!limit.ok) {
-    return error(429, 'rate_limited', apiMessage(request, 'rate_limited'), {
+    return error(429, 'rate_limited', await apiMessage(request, 'rate_limited'), {
       'Retry-After': String(limit.retryAfterSeconds),
     });
   }
@@ -29,11 +52,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const [secret] = await db.select().from(secrets).where(eq(secrets.id, id));
   if (!secret) {
-    return error(404, 'not_found', apiMessage(request, 'not_found'));
+    return error(404, 'not_found', await apiMessage(request, 'not_found'));
   }
   if (secret.expiresAt.getTime() < Date.now()) {
     await db.delete(secrets).where(eq(secrets.id, id));
-    return error(410, 'expired', apiMessage(request, 'expired'));
+    return error(410, 'expired', await apiMessage(request, 'expired'));
   }
   // Lazy cleanup piggybacks on traffic instead of a cron.
   await deleteExpired();
@@ -43,7 +66,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   // query-string channel for it to leak through.
   const token = request.headers.get('x-creator-token');
   if (token !== null && !verifyCreatorToken(token, secret.creatorTokenHash)) {
-    return error(403, 'invalid_token', apiMessage(request, 'invalid_token'));
+    return error(403, 'invalid_token', await apiMessage(request, 'invalid_token'));
   }
 
   // Status probe: keyless (the view flow's pre-check) returns the burn and
@@ -79,7 +102,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   // checksum, which would hand keyless callers an offline guessing oracle.
   const checksum = request.headers.get('x-key-checksum');
   if (!checksum || !verifyKeyChecksum(checksum, secret.keyChecksum)) {
-    return error(403, 'invalid_key', apiMessage(request, 'invalid_key'));
+    return error(403, 'invalid_key', await apiMessage(request, 'invalid_key'));
   }
 
   // Burn-after-read: the first key-valid request consumes the secret. Row
@@ -91,20 +114,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .where(and(eq(secrets.id, id), eq(secrets.keyChecksum, checksum)))
       .returning();
     if (!burned) {
-      return error(404, 'consumed', apiMessage(request, 'consumed'));
+      return error(404, 'consumed', await apiMessage(request, 'consumed'));
     }
-    return NextResponse.json({
-      ciphertext: burned.ciphertext,
-      iv: burned.iv,
-      hasPassword: burned.hasPassword,
-      wrappedKey: burned.hasPassword ? burned.wrappedKey : undefined,
-      wrapIv: burned.hasPassword ? burned.wrapIv : undefined,
-      wrapSalt: burned.hasPassword ? burned.wrapSalt : undefined,
-      burnAfterRead: true,
-      createdAt: burned.createdAt,
-      expiresAt: burned.expiresAt,
-      viewedAt: burned.viewedAt,
-    }, { headers: NO_STORE });
+    return NextResponse.json(payload(burned), { headers: NO_STORE });
   }
 
   // Only the view flow (no token) marks the secret as viewed — manage-page
@@ -114,18 +126,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     await db.update(secrets).set({ viewedAt: secret.viewedAt }).where(eq(secrets.id, id));
   }
 
-  return NextResponse.json({
-    ciphertext: secret.ciphertext,
-    iv: secret.iv,
-    hasPassword: secret.hasPassword,
-    wrappedKey: secret.hasPassword ? secret.wrappedKey : undefined,
-    wrapIv: secret.hasPassword ? secret.wrapIv : undefined,
-    wrapSalt: secret.hasPassword ? secret.wrapSalt : undefined,
-    burnAfterRead: secret.burnAfterRead,
-    createdAt: secret.createdAt,
-    expiresAt: secret.expiresAt,
-    viewedAt: secret.viewedAt,
-  }, { headers: NO_STORE });
+  return NextResponse.json(payload(secret), { headers: NO_STORE });
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
@@ -133,7 +134,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   // blunts token-guessing and burn spam.
   const limit = rateLimit(`delete:${await clientIp(request.headers)}`, RATE_LIMITS.deletePerMinute, 60 * 1000);
   if (!limit.ok) {
-    return error(429, 'rate_limited', apiMessage(request, 'rate_limited'), {
+    return error(429, 'rate_limited', await apiMessage(request, 'rate_limited'), {
       'Retry-After': String(limit.retryAfterSeconds),
     });
   }
@@ -142,7 +143,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   const [secret] = await db.select().from(secrets).where(eq(secrets.id, id));
   if (!secret) {
-    return error(404, 'not_found', apiMessage(request, 'not_found'));
+    return error(404, 'not_found', await apiMessage(request, 'not_found'));
   }
 
   // Deletion always requires the creator token. (A token-less branch for burn
@@ -151,10 +152,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   // denial-of-service by anyone holding the bare ID.)
   const token = request.headers.get('x-creator-token');
   if (token === null) {
-    return error(403, 'token_required', apiMessage(request, 'token_required'));
+    return error(403, 'token_required', await apiMessage(request, 'token_required'));
   }
   if (!verifyCreatorToken(token, secret.creatorTokenHash)) {
-    return error(403, 'invalid_token', apiMessage(request, 'invalid_token'));
+    return error(403, 'invalid_token', await apiMessage(request, 'invalid_token'));
   }
 
   await db.delete(secrets).where(eq(secrets.id, id));

@@ -48,8 +48,10 @@ export function CopyButton({
       onClick={copy}
       {...props}
     >
-      {/* key remounts the content on state change so the swap pops. */}
-      <span key={state} className="flex items-center gap-2 animate-pop">
+      {/* key remounts the content on state change; @starting-style (in
+          globals.css) gives the fresh node an entry transition rather than a
+          keyframe replay. */}
+      <span key={state} className="animate-swap flex items-center gap-2">
         {state === 'copied' ? (
           <Check aria-hidden className="size-4" />
         ) : state === 'failed' ? (

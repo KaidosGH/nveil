@@ -116,7 +116,7 @@ export function ManageSecret({ id }: { id: string }) {
 
   if (state.phase === 'error') {
     return (
-      <Card>
+      <Card className="animate-fade-up">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive-foreground">
             <TriangleAlert aria-hidden className="size-5" /> {t.manage.invalidTitle}
@@ -129,7 +129,7 @@ export function ManageSecret({ id }: { id: string }) {
 
   if (state.phase === 'deleted') {
     return (
-      <Card>
+      <Card className="animate-fade-up">
         <CardHeader>
           <CardTitle>{t.manage.deletedTitle}</CardTitle>
           <CardDescription>{t.manage.deletedDesc}</CardDescription>
@@ -142,7 +142,7 @@ export function ManageSecret({ id }: { id: string }) {
   const yesNo = (v: boolean) => (v ? t.common.yes : t.common.no);
 
   return (
-    <Card>
+    <Card className="animate-fade-up">
       <CardHeader>
         <CardTitle>{t.manage.title}</CardTitle>
         <CardDescription>{t.manage.description}</CardDescription>
@@ -160,7 +160,7 @@ export function ManageSecret({ id }: { id: string }) {
         </dl>
 
         {confirming ? (
-          <div className="space-y-3 rounded-md border border-destructive/40 p-4">
+          <div className="animate-pop space-y-3 rounded-md border border-destructive/40 p-4">
             <p className="text-sm">{t.manage.confirm}</p>
             <div className="flex gap-2">
               <Button variant="destructive" size="sm" onClick={onDelete} loading={deleting}>
