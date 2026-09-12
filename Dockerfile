@@ -11,6 +11,10 @@ COPY package*.json ./
 # installs everything — the cache keeps re-downloads off the wire.
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . .
+# Opt into standalone output for this build only: the runner stage copies the
+# self-contained server.js. Local/CI builds leave it off so `next start` does
+# not warn about the mismatch (see next.config.ts).
+ENV NVEIL_STANDALONE=1
 RUN npm run build
 
 # Production stage
