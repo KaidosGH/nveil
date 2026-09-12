@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label, PassphraseInput, Textarea } from '@/components/ui';
+import { Label, PassphraseInput, PillRadioGroup, Textarea } from '@/components/ui';
 import { ExpirationPicker } from '@/components/expiration-picker';
 import { SecretUrlDisplay } from '@/components/secret-url-display';
 import { useI18n } from '@/components/i18n-provider';
@@ -20,7 +20,7 @@ import {
   wrapKeyWithPassword,
 } from '@/lib/crypto';
 import { EXPIRATION_PRESETS, MAX_CONTENT_BYTES, type ExpirationChoice } from '@/lib/validation';
-import { cn, radioGroupKeyDown } from '@/lib/utils';
+import { format } from '@/lib/i18n/index';
 
 type FormValues = {
   content: string;
@@ -307,37 +307,14 @@ export function CreateSecretForm() {
               {t.create.destructionLabel}
             </span>
             <p className="text-xs text-muted-foreground">{t.create.destructionDesc}</p>
-            <div
-              role="radiogroup"
-              aria-labelledby={destructionLabelId}
-              onKeyDown={(e) => radioGroupKeyDown(e, DESTRUCTION_MODES, destruction, setDestruction)}
-              className="flex flex-wrap gap-1.5"
-            >
-              {DESTRUCTION_MODES.map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  role="radio"
-                  aria-checked={destruction === mode}
-                  tabIndex={destruction === mode ? 0 : -1}
-                  onClick={() => setDestruction(mode)}
-                  className={cn(
-                    'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
-                    destruction === mode
-                      ? 'border-ring bg-primary font-medium text-primary-foreground'
-                      : 'border-input hover:bg-muted',
-                  )}
-                >
-                  {mode === 'burn'
-                    ? t.create.destructionBurn
-                    : mode === 'v3'
-                      ? t.create.destructionViews3
-                      : mode === 'v5'
-                        ? t.create.destructionViews5
-                        : t.create.destructionNever}
-                </button>
-              ))}
-            </div>
+            <PillRadioGroup ids={DESTRUCTION_MODES} value={destruction} onChange={setDestruction} labelledBy={destructionLabelId}>
+              {(mode) =>
+                mode === 'burn'
+                  ? t.create.destructionBurn
+                  : mode === 'never'
+                    ? t.create.destructionNever
+                    : format(t.create.destructionViews, { max: mode === 'v3' ? 3 : 5 })}
+            </PillRadioGroup>
           </div>
 
           <details>
@@ -394,35 +371,14 @@ export function CreateSecretForm() {
               )}
               <div className="space-y-2">
                 <span id={keyDeliveryLabelId} className="text-sm font-medium leading-none">{t.create.keyDeliveryLabel}</span>
-                <div
-                  role="radiogroup"
-                  aria-labelledby={keyDeliveryLabelId}
-                  onKeyDown={(e) => radioGroupKeyDown(e, KEY_DELIVERY, keyDelivery, setKeyDelivery)}
-                  className="flex flex-wrap gap-1.5"
-                >
-                  {KEY_DELIVERY.map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={keyDelivery === mode}
-                      tabIndex={keyDelivery === mode ? 0 : -1}
-                      onClick={() => setKeyDelivery(mode)}
-                      className={cn(
-                        'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
-                        keyDelivery === mode
-                          ? 'border-ring bg-primary font-medium text-primary-foreground'
-                          : 'border-input hover:bg-muted',
-                      )}
-                    >
-                      {mode === 'link'
-                        ? t.create.keyDeliveryLink
-                        : mode === 'separate'
-                          ? t.create.keyDeliverySeparate
-                          : t.create.keyDeliveryPassword}
-                    </button>
-                  ))}
-                </div>
+                <PillRadioGroup ids={KEY_DELIVERY} value={keyDelivery} onChange={setKeyDelivery} labelledBy={keyDeliveryLabelId}>
+                  {(mode) =>
+                    mode === 'link'
+                      ? t.create.keyDeliveryLink
+                      : mode === 'separate'
+                        ? t.create.keyDeliverySeparate
+                        : t.create.keyDeliveryPassword}
+                </PillRadioGroup>
                 {keyDelivery === 'separate' && (
                   <p className="text-xs text-muted-foreground">{t.create.separateKeyDesc}</p>
                 )}

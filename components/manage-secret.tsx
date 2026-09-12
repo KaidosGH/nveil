@@ -5,6 +5,7 @@ import { Trash2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useI18n } from '@/components/i18n-provider';
+import { useNow } from '@/components/use-now';
 import { countdownTo, format, type ApiMessageCode } from '@/lib/i18n/index';
 
 type Meta = {
@@ -28,13 +29,6 @@ export function ManageSecret({ id }: { id: string }) {
   const [state, setState] = useState<State>({ phase: 'loading' });
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  // Ticks the expiry countdown — same 30s cadence as the view page, far
-  // below the granularity the relative-time text can express.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
 
   const localizedError = useCallback(
     (data: { error?: string; message?: string } | null, fallback: string): string =>
@@ -161,16 +155,15 @@ export function ManageSecret({ id }: { id: string }) {
           <dd>{new Date(meta.createdAt).toLocaleString(locale)}</dd>
           <dt className="text-muted-foreground">{t.manage.expires}</dt>
           <dd>
-            {new Date(meta.expiresAt).toLocaleString(locale)} (
-            {countdownTo(new Date(meta.expiresAt).getTime(), locale, now)})
+            <ExpiresAt expiresAt={meta.expiresAt} />
           </dd>
           <dt className="text-muted-foreground">{t.manage.selfDestruct}</dt>
           <dd>
             {meta.burnAfterRead
-              ? t.manage.destroyBurn
+              ? t.create.destructionBurn
               : meta.maxViews !== null
-                ? format(t.manage.destroyViews, { max: meta.maxViews })
-                : t.manage.destroyExpiry}
+                ? format(t.create.destructionViews, { max: meta.maxViews })
+                : t.create.destructionNever}
           </dd>
           <dt className="text-muted-foreground">{t.manage.views}</dt>
           <dd>
@@ -201,5 +194,18 @@ export function ManageSecret({ id }: { id: string }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** The expiry row value: absolute local date plus a live relative countdown,
+ *  with its own 30s tick (useNow) — mounted only while the ready card renders. */
+function ExpiresAt({ expiresAt }: { expiresAt: string }) {
+  const { locale } = useI18n();
+  const now = useNow();
+  return (
+    <>
+      {new Date(expiresAt).toLocaleString(locale)} (
+      {countdownTo(new Date(expiresAt).getTime(), locale, now)})
+    </>
   );
 }

@@ -113,18 +113,23 @@ export async function GET(request: NextRequest, context: RouteContext) {
   // granted, the same guarantee burn-after-read has always had. With NULL
   // max_views the comparison is NULL and only burn rows match; a wrong key
   // can never reach this statement (the checksum was verified above).
-  const [consumed] = await db
-    .delete(secrets)
-    .where(
-      and(
-        eq(secrets.id, id),
-        eq(secrets.keyChecksum, checksum),
-        or(eq(secrets.burnAfterRead, true), sql`${secrets.viewCount} = ${secrets.maxViews} - 1`),
-      ),
-    )
-    .returning();
-  if (consumed) {
-    return NextResponse.json(payload(consumed), { headers: NO_STORE });
+  // Unlimited secrets skip it entirely: both flags are immutable after
+  // creation, so the pre-fetched row is authoritative and the DELETE could
+  // never match.
+  if (secret.burnAfterRead || secret.maxViews !== null) {
+    const [consumed] = await db
+      .delete(secrets)
+      .where(
+        and(
+          eq(secrets.id, id),
+          eq(secrets.keyChecksum, checksum),
+          or(eq(secrets.burnAfterRead, true), sql`${secrets.viewCount} = ${secrets.maxViews} - 1`),
+        ),
+      )
+      .returning();
+    if (consumed) {
+      return NextResponse.json(payload(consumed), { headers: NO_STORE });
+    }
   }
 
   // Non-consuming read: increments the counter under the remaining-views

@@ -58,7 +58,17 @@ export async function POST(request: NextRequest) {
   await deleteExpired();
 
   const id = crypto.randomUUID();
-  await db.insert(secrets).values({ id, ...parsed.data });
+  // A 1-view limit IS burn-after-read: normalize so those secrets take the
+  // atomic consuming path and the UI's reveal confirmation (the schema
+  // already rejects maxViews combined with burnAfterRead).
+  const burnAfterRead = parsed.data.burnAfterRead || parsed.data.maxViews === 1;
+  const maxViews = parsed.data.maxViews === 1 ? null : (parsed.data.maxViews ?? null);
+  await db.insert(secrets).values({
+    id,
+    ...parsed.data,
+    burnAfterRead,
+    maxViews,
+  });
 
   const response = NextResponse.json({ id }, { status: 201 });
   // Sliding cookie: a successful creation renews the holder's browser

@@ -67,7 +67,7 @@ jobs:
       - run: npm run check
 
       - name: E2E tests
-        # Rate-limit test 10 asserts a real 429, so the server runs at the
+        # Rate-limit test 11 asserts a real 429, so the server runs at the
         # default create limit here. The UI suite needs its own headroom —
         # it runs on a second server (below) with the limit raised, because
         # it creates secrets after e2e has already spent this budget.
