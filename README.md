@@ -20,6 +20,7 @@ Source: [github.com/KaidosGH/nveil](https://github.com/KaidosGH/nveil)
 
 - **End-to-end encrypted** — AES-256-GCM entirely in the browser (Web Crypto API, no third-party crypto libraries)
 - **Burn after reading** — the first read with the correct key atomically consumes the secret server-side; concurrent or later readers get nothing, and a confirmation step prevents accidental consumption
+- **View-limit expiry** — destroy a secret after N reads (3 or 5 in the UI, any 1–1000 via the API); expiry and view limit apply whichever comes first. Only a counter is stored — never who viewed, when, or from where
 - **Expiring secrets** — 5 minutes to 30 days in the UI (the server accepts any expiry up to 31 days), auto-deleted
 - **Key separation mode** — share the link and the decryption key through different channels
 - **Password protection** — an optional password wraps the decryption key (PBKDF2-SHA256, 600k iterations + AES-GCM); the link alone is not enough, and the password never leaves the creator's browser
@@ -172,8 +173,8 @@ footer links can be hidden with `NVEIL_SUPPORT_LINK=false`.
 
 | Method | Route | Description |
 | --- | --- | --- |
-| POST | `/api/secrets` | Create (`{ ciphertext, iv, keyChecksum, creatorTokenHash, burnAfterRead, expiresAt }`, plus the password envelope when `hasPassword`) → `{ id }`, 201. With the access-key gate on, the request must also carry a valid key via the `x-access-key` header or the `nveil-access-key` cookie |
-| GET | `/api/secrets/{id}` | Fetch payload + metadata. Payload reads require the `x-key-checksum` header matching the stored key hash (403 otherwise) and consume burn-after-read secrets. A valid `x-creator-token` header instead returns manage metadata only (the payload is deliberately unreachable without the key). `?meta=1` keyless returns status flags (burn, password) and, for password-protected secrets, the wrapped key envelope. |
+| POST | `/api/secrets` | Create (`{ ciphertext, iv, keyChecksum, creatorTokenHash, burnAfterRead, maxViews?, expiresAt }`, plus the password envelope when `hasPassword`; `maxViews` cannot be combined with `burnAfterRead`) → `{ id }`, 201. With the access-key gate on, the request must also carry a valid key via the `x-access-key` header or the `nveil-access-key` cookie |
+| GET | `/api/secrets/{id}` | Fetch payload + metadata. Payload reads require the `x-key-checksum` header matching the stored key hash (403 otherwise), consume burn-after-read secrets, and count down view-limited ones (destroyed at 0 remaining). A valid `x-creator-token` header instead returns manage metadata only (the payload is deliberately unreachable without the key; includes `viewCount`/`maxViews`). `?meta=1` keyless returns status flags (burn, password) and, for password-protected secrets, the wrapped key envelope. |
 | DELETE | `/api/secrets/{id}` | Delete — always requires a valid `x-creator-token` header |
 | POST | `/api/abuse-reports` | Report abuse (`{ url, reason? }`; an `x-key-checksum` header marks the report witness-verified) — enabled via `NVEIL_REPORT_ABUSE`; answers a uniform 202 |
 | GET | `/api/abuse-reports/list` | Operator queue (`x-abuse-key` header; `?includeResolved` also returns closed reports) |
@@ -212,6 +213,7 @@ days, and check the abuse queue when reports arrive.
 - Never log plaintext or keys. Plaintext exists only in the browser's memory of the two parties.
 - Abuse reports store only the secret ID, an optional reason and timestamps — never reporter IPs, fragments or secret contents. Reports are only visible to holders of `NVEIL_REPORT_ABUSE_KEY`.
 - Optional access-key gate (managed instances): secret creation requires a 256-bit access key; only its SHA-256 hash, a label and lifecycle timestamps are stored — secrets are never linked to keys, and the key travels in an `httpOnly` cookie scripts cannot read.
+- View-limited secrets store only a counter of successful decryptions — never who viewed, when, or from where.
 
 ## AI-assisted development
 

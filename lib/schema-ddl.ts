@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS secrets (
     burn_after_read boolean DEFAULT false NOT NULL,
     created_at timestamptz DEFAULT now() NOT NULL,
     viewed_at timestamptz,
+    max_views integer,
+    view_count integer DEFAULT 0 NOT NULL,
     has_password boolean DEFAULT false NOT NULL,
     wrapped_key text,
     wrap_iv text,
@@ -44,6 +46,8 @@ ALTER TABLE secrets ADD COLUMN IF NOT EXISTS has_password boolean DEFAULT false 
 ALTER TABLE secrets ADD COLUMN IF NOT EXISTS wrapped_key text;
 ALTER TABLE secrets ADD COLUMN IF NOT EXISTS wrap_iv text;
 ALTER TABLE secrets ADD COLUMN IF NOT EXISTS wrap_salt text;
+ALTER TABLE secrets ADD COLUMN IF NOT EXISTS max_views integer;
+ALTER TABLE secrets ADD COLUMN IF NOT EXISTS view_count integer DEFAULT 0 NOT NULL;
 ALTER TABLE abuse_reports ADD COLUMN IF NOT EXISTS witness_verified boolean DEFAULT false NOT NULL;
 CREATE TABLE IF NOT EXISTS instance_settings (
     key text PRIMARY KEY,

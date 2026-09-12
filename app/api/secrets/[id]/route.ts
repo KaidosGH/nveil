@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { db, deleteExpired } from '@/lib/db';
 import { secrets } from '@/drizzle/schema';
 import { clientIp, rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
@@ -89,6 +89,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
             burnAfterRead: secret.burnAfterRead,
             hasPassword: secret.hasPassword,
             ...wrapped,
+            maxViews: secret.maxViews,
+            viewCount: secret.viewCount,
             createdAt: secret.createdAt,
             expiresAt: secret.expiresAt,
             viewedAt: secret.viewedAt,
@@ -105,28 +107,55 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return error(403, 'invalid_key', await apiMessage(request, 'invalid_key'));
   }
 
-  // Burn-after-read: the first key-valid request consumes the secret. Row
-  // deletion and payload return happen in one atomic statement, so concurrent
-  // readers cannot both receive the ciphertext.
-  if (secret.burnAfterRead) {
-    const [burned] = await db
-      .delete(secrets)
-      .where(and(eq(secrets.id, id), eq(secrets.keyChecksum, checksum)))
-      .returning();
-    if (!burned) {
-      return error(404, 'consumed', await apiMessage(request, 'consumed'));
-    }
-    return NextResponse.json(payload(burned), { headers: NO_STORE });
+  // Consuming read — burn-after-read, or the final allowed view of a
+  // view-limited secret (view_count = max_views - 1). One atomic statement:
+  // Postgres row locking means concurrent final readers cannot both be
+  // granted, the same guarantee burn-after-read has always had. With NULL
+  // max_views the comparison is NULL and only burn rows match; a wrong key
+  // can never reach this statement (the checksum was verified above).
+  const [consumed] = await db
+    .delete(secrets)
+    .where(
+      and(
+        eq(secrets.id, id),
+        eq(secrets.keyChecksum, checksum),
+        or(eq(secrets.burnAfterRead, true), sql`${secrets.viewCount} = ${secrets.maxViews} - 1`),
+      ),
+    )
+    .returning();
+  if (consumed) {
+    return NextResponse.json(payload(consumed), { headers: NO_STORE });
   }
 
-  // Only the view flow (no token) marks the secret as viewed — manage-page
-  // visits must not pollute the metadata.
-  if (token === null && secret.viewedAt === null) {
-    secret.viewedAt = new Date();
-    await db.update(secrets).set({ viewedAt: secret.viewedAt }).where(eq(secrets.id, id));
+  // Non-consuming read: increments the counter under the remaining-views
+  // guard, so concurrent readers can never push past the cap and both be
+  // granted. Only the view flow (no token) marks the secret as viewed —
+  // manage-page visits must not pollute the metadata.
+  const [granted] = await db
+    .update(secrets)
+    .set({
+      viewCount: sql`${secrets.viewCount} + 1`,
+      ...(token === null ? { viewedAt: sql`COALESCE(${secrets.viewedAt}, now())` } : {}),
+    })
+    .where(
+      and(
+        eq(secrets.id, id),
+        eq(secrets.keyChecksum, checksum),
+        or(isNull(secrets.maxViews), sql`${secrets.viewCount} < ${secrets.maxViews}`),
+      ),
+    )
+    .returning();
+  if (!granted) {
+    // Valid key (verified above) but nothing left to grant: consumed or burned.
+    return error(404, 'consumed', await apiMessage(request, 'consumed'));
+  }
+  // Concurrent grants can land exactly on the cap; the guard keeps the row
+  // unreadable from here on — drop it so the ciphertext doesn't linger.
+  if (granted.maxViews !== null && granted.viewCount >= granted.maxViews) {
+    await db.delete(secrets).where(eq(secrets.id, id));
   }
 
-  return NextResponse.json(payload(secret), { headers: NO_STORE });
+  return NextResponse.json(payload(granted), { headers: NO_STORE });
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {

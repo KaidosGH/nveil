@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const secrets = pgTable('secrets', {
   id: text('id').primaryKey(),
@@ -10,6 +10,11 @@ export const secrets = pgTable('secrets', {
   burnAfterRead: boolean('burn_after_read').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   viewedAt: timestamp('viewed_at', { withTimezone: true }),
+  // View-limit expiry: max_views caps key-valid payload reads (NULL =
+  // unlimited, burn secrets never set it); view_count increments atomically
+  // per granted read. A counter — never who viewed or from where.
+  maxViews: integer('max_views'),
+  viewCount: integer('view_count').default(0).notNull(),
   // Password protection: the content key wrapped by a password-derived key.
   // The password itself never reaches the server.
   hasPassword: boolean('has_password').default(false).notNull(),

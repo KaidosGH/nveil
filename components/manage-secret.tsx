@@ -5,13 +5,15 @@ import { Trash2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useI18n } from '@/components/i18n-provider';
-import type { ApiMessageCode } from '@/lib/i18n/index';
+import { countdownTo, format, type ApiMessageCode } from '@/lib/i18n/index';
 
 type Meta = {
   burnAfterRead: boolean;
   createdAt: string;
   expiresAt: string;
   viewedAt: string | null;
+  maxViews: number | null;
+  viewCount: number;
 };
 
 type State =
@@ -21,11 +23,18 @@ type State =
   | { phase: 'deleted' };
 
 export function ManageSecret({ id }: { id: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const tokenRef = useRef('');
   const [state, setState] = useState<State>({ phase: 'loading' });
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // Ticks the expiry countdown — same 30s cadence as the view page, far
+  // below the granularity the relative-time text can express.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const localizedError = useCallback(
     (data: { error?: string; message?: string } | null, fallback: string): string =>
@@ -139,7 +148,6 @@ export function ManageSecret({ id }: { id: string }) {
   }
 
   const { meta } = state;
-  const yesNo = (v: boolean) => (v ? t.common.yes : t.common.no);
 
   return (
     <Card className="animate-fade-up">
@@ -150,13 +158,28 @@ export function ManageSecret({ id }: { id: string }) {
       <CardContent className="space-y-5">
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted-foreground">{t.manage.created}</dt>
-          <dd>{new Date(meta.createdAt).toLocaleString()}</dd>
+          <dd>{new Date(meta.createdAt).toLocaleString(locale)}</dd>
           <dt className="text-muted-foreground">{t.manage.expires}</dt>
-          <dd>{new Date(meta.expiresAt).toLocaleString()}</dd>
-          <dt className="text-muted-foreground">{t.manage.burn}</dt>
-          <dd>{yesNo(meta.burnAfterRead)}</dd>
+          <dd>
+            {new Date(meta.expiresAt).toLocaleString(locale)} (
+            {countdownTo(new Date(meta.expiresAt).getTime(), locale, now)})
+          </dd>
+          <dt className="text-muted-foreground">{t.manage.selfDestruct}</dt>
+          <dd>
+            {meta.burnAfterRead
+              ? t.manage.destroyBurn
+              : meta.maxViews !== null
+                ? format(t.manage.destroyViews, { max: meta.maxViews })
+                : t.manage.destroyExpiry}
+          </dd>
+          <dt className="text-muted-foreground">{t.manage.views}</dt>
+          <dd>
+            {meta.maxViews !== null
+              ? format(t.manage.viewCount, { count: meta.viewCount, max: meta.maxViews })
+              : meta.viewCount}
+          </dd>
           <dt className="text-muted-foreground">{t.manage.viewed}</dt>
-          <dd>{meta.viewedAt ? new Date(meta.viewedAt).toLocaleString() : t.manage.notYet}</dd>
+          <dd>{meta.viewedAt ? new Date(meta.viewedAt).toLocaleString(locale) : t.manage.notYet}</dd>
         </dl>
 
         {confirming ? (

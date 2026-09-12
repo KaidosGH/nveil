@@ -15,7 +15,7 @@ import {
 } from '../lib/crypto.ts';
 const BASE = process.env.BASE_URL ?? 'http://localhost:3100';
 
-async function createSecret({ content, burnAfterRead = true, expiresInSeconds = 3600, password }) {
+async function createSecret({ content, burnAfterRead = true, maxViews = null, expiresInSeconds = 3600, password }) {
   const { key, keyString } = await generateKey();
   const token = generateCreatorToken();
   const { ciphertext, iv } = await encrypt(key, content);
@@ -29,6 +29,7 @@ async function createSecret({ content, burnAfterRead = true, expiresInSeconds = 
       keyChecksum: await keyChecksum(keyString),
       creatorTokenHash: await tokenHash(token),
       burnAfterRead,
+      maxViews,
       expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
       ...envelope,
     }),
@@ -418,7 +419,56 @@ if (process.env.TEST_ABUSE === '1') {
   console.log('9. abuse reporting: ok');
 }
 
-// 10. Rate limiting: creating eventually returns 429 with Retry-After (exhausts the create budget — always runs last).
+// 10. View-limit expiry (maxViews): key-valid reads consume the budget, wrong
+//     keys and meta probes never do, the final read deletes the row, and
+//     concurrent readers can never exceed the cap.
+{
+  const { id, keyString, token } = await createSecret({
+    content: 'two views only',
+    burnAfterRead: false,
+    maxViews: 2,
+  });
+
+  // Wrong key: rejected without consuming a view.
+  const wrong = await generateKey().then((k) => fetchSecret(id, k.keyString));
+  assert.equal(wrong.response.status, 403, 'a wrong key must not read or consume a view');
+
+  // Creator meta probe: exposes the counter, consumes nothing.
+  const meta = await fetch(`${BASE}/api/secrets/${id}?meta=1`, { headers: { 'x-creator-token': token } });
+  assert.equal(meta.status, 200);
+  assert.equal((await meta.json()).viewCount, 0, 'meta probes must not count as views');
+
+  // Two key-valid reads: the second is the final view and consumes the row…
+  const first = await fetchSecret(id, keyString);
+  assert.equal(first.response.status, 200);
+  const afterFirst = await fetch(`${BASE}/api/secrets/${id}?meta=1`, { headers: { 'x-creator-token': token } });
+  assert.equal((await afterFirst.json()).viewCount, 1, 'a granted read must increment the counter');
+  const second = await fetchSecret(id, keyString);
+  assert.equal(second.response.status, 200, 'the final view must still be granted');
+  // …so a third read finds nothing: the final view deleted the row outright.
+  // ('consumed' is the concurrency-window answer when the row still exists.)
+  const third = await fetchSecret(id, keyString);
+  assert.equal(third.response.status, 404);
+  assert.equal(third.data.error, 'not_found');
+  const afterMeta = await fetch(`${BASE}/api/secrets/${id}?meta=1`, { headers: { 'x-creator-token': token } });
+  assert.equal(afterMeta.status, 404, 'an exhausted secret must be deleted');
+
+  // Concurrency: with a budget of 2, exactly two of three parallel readers
+  // are granted — the counter can never overshoot into an extra view.
+  const race = await createSecret({ content: 'race views', burnAfterRead: false, maxViews: 2 });
+  const attempts = await Promise.all([
+    fetchSecret(race.id, race.keyString),
+    fetchSecret(race.id, race.keyString),
+    fetchSecret(race.id, race.keyString),
+  ]);
+  const granted = attempts.filter((a) => a.response.status === 200);
+  const consumed = attempts.filter((a) => a.response.status === 404);
+  assert.equal(granted.length, 2, 'exactly maxViews concurrent reads may be granted');
+  assert.equal(consumed.length, 1, 'the reader beyond the cap must be consumed');
+  console.log('10. view-limit expiry (maxViews): ok');
+}
+
+// 11. Rate limiting: creating eventually returns 429 with Retry-After (exhausts the create budget — always runs last).
 {
   let limited = null;
   for (let i = 0; i < 50 && !limited; i++) {
@@ -440,7 +490,7 @@ if (process.env.TEST_ABUSE === '1') {
     }
   }
   assert.ok(limited, 'create rate limit never triggered');
-  console.log('10. rate limiting: ok');
+  console.log('11. rate limiting: ok');
 }
 
 
