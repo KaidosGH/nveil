@@ -148,7 +148,9 @@ export const en = {
     keyLabel: 'Decryption key',
     decrypt: 'Decrypt',
     copyClipboard: 'Copy to clipboard',
-    validUntil: 'This secret self-deletes on {date} (your local time).',
+    // {time} comes from countdownTo (Intl.RelativeTimeFormat), which already
+    // carries the preposition ("in 59 minutes") — no "in" in the template.
+    validUntil: 'This secret self-deletes {time} (on {date}, your local time).',
     burnTitle: 'One-time secret',
     burnWarning:
       'This secret will be permanently deleted immediately after you view it. This cannot be undone.',

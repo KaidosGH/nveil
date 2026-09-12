@@ -11,7 +11,7 @@ import { Input, Label, PassphraseInput } from '@/components/ui';
 import { useI18n } from '@/components/i18n-provider';
 import { decrypt, keyChecksum, unwrapKeyWithPassword } from '@/lib/crypto';
 import type { ApiMessageCode } from '@/lib/i18n/index';
-import { format } from '@/lib/i18n/index';
+import { countdownTo, format } from '@/lib/i18n/index';
 
 type Meta = {
   ciphertext: string;
@@ -50,7 +50,7 @@ export function ViewSecret({
    *  is then witness-verified via the in-scope key checksum. */
   showAbuseReport?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, setState] = useState<State>({ phase: 'loading' });
   const [pastedKey, setPastedKey] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -59,6 +59,13 @@ export function ViewSecret({
   // you see is the exact stored text, no interpretation. Deliberately not
   // persisted — every view starts plain.
   const [renderMode, setRenderMode] = useState<'plain' | 'markdown'>('plain');
+  // Ticks the deletion countdown. 30s is far below the granularity the text
+  // can express (whole minutes), so it reads as live without wasting cycles.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
   const burnRef = useRef(false);
   const checksumRef = useRef<string | null>(null);
 
@@ -411,7 +418,8 @@ export function ViewSecret({
         {state.expiresAt && (
           <p className="text-sm text-muted-foreground">
             {format(t.view.validUntil, {
-              date: new Date(state.expiresAt).toLocaleString(),
+              time: countdownTo(new Date(state.expiresAt).getTime(), locale, now),
+              date: new Date(state.expiresAt).toLocaleString(locale),
             })}
           </p>
         )}

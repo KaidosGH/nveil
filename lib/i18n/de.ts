@@ -147,7 +147,9 @@ export const de: Dict = {
     keyLabel: 'Entschlüsselungsschlüssel',
     decrypt: 'Entschlüsseln',
     copyClipboard: 'In die Zwischenablage kopieren',
-    validUntil: 'Dieses Secret löscht sich am {date} selbst (Ihre Ortszeit).',
+    // {time} kommt von countdownTo (Intl.RelativeTimeFormat) und enthält die
+    // Präposition bereits ("in 59 Minuten") — daher kein "in" im Template.
+    validUntil: 'Dieses Secret löscht sich {time} selbst (am {date}, Ihre Ortszeit).',
     burnTitle: 'Einmal-Secret',
     burnWarning:
       'Dieses Secret wird unmittelbar nach dem Anzeigen dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.',

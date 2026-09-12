@@ -101,6 +101,17 @@ page.setDefaultTimeout(15_000);
     await page.isVisible('text=reveal me once'),
     'revealed secret content must survive a locale switch',
   );
+  // 2b. Deletion countdown: a regular secret shows "self-deletes in …" next
+  //     to the absolute date. Burn secrets deliberately show none — they die
+  //     on read, so an expiry would be misleading. The context is still on
+  //     the German locale from the switch above.
+  {
+    const { id, keyString } = await makeSecret({ content: 'countdown target' });
+    await page.goto(`${BASE}/secret/${id}#${keyString}`);
+    await page.waitForSelector('text=countdown target', { timeout: 10_000 });
+    const text = await page.evaluate(() => document.body.innerText);
+    assert.match(text, /löscht sich in \d+ (Stunde|Minute|Sekunde)/, 'deletion countdown must render');
+  }
   console.log('2. revealed burn secret: language switch preserves content: ok');
 }
 
