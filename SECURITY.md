@@ -18,6 +18,9 @@ write a useful report:
   in the browser; the decryption key lives in the URL fragment and is never
   sent to the server.
 - Burn-after-read consumption is a single atomic server-side delete.
+- View-limit expiry (`maxViews`): the final allowed read is the same atomic
+  server-side delete. Only a read counter and a first-view timestamp are
+  stored — no per-view log, and never who viewed or from where.
 - Optional access-key gate (managed instances): creation requires a 256-bit
   access key; only its SHA-256 hash, a label and lifecycle timestamps are
   stored. Secrets are never linked to keys, and the key is held in an
@@ -40,7 +43,9 @@ Things that are **not** vulnerabilities in this model:
 - For password-protected secrets, anyone holding the (UUID) link can fetch the
   wrapped envelope and attempt offline password guessing — password strength
   carries the security there.
-- Metadata probes (`?meta=1`) reveal link validity/burn flags to link holders.
+- Metadata probes (`?meta=1`) reveal link validity, burn and password flags
+  and — for password-protected secrets — the PBKDF2-wrapped key envelope
+  (which is what enables the offline-guessing case above).
 
 ## Supported versions
 

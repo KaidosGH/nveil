@@ -446,12 +446,28 @@ if (process.env.TEST_ABUSE === '1') {
   const second = await fetchSecret(id, keyString);
   assert.equal(second.response.status, 200, 'the final view must still be granted');
   // …so a third read finds nothing: the final view deleted the row outright.
-  // ('consumed' is the concurrency-window answer when the row still exists.)
+  // ('consumed' is the concurrency-window answer while the row still exists;
+  // either 404 code means the same thing to a client.)
   const third = await fetchSecret(id, keyString);
   assert.equal(third.response.status, 404);
-  assert.equal(third.data.error, 'not_found');
   const afterMeta = await fetch(`${BASE}/api/secrets/${id}?meta=1`, { headers: { 'x-creator-token': token } });
   assert.equal(afterMeta.status, 404, 'an exhausted secret must be deleted');
+
+  // maxViews: 1 normalizes to burn-after-read — the atomic consuming path
+  // plus the UI's reveal confirmation, so the API cannot mint a weaker burn.
+  const one = await createSecret({ content: 'one view = burn', burnAfterRead: false, maxViews: 1 });
+  const oneMeta = await (
+    await fetch(`${BASE}/api/secrets/${one.id}?meta=1`, { headers: { 'x-creator-token': one.token } })
+  ).json();
+  assert.equal(oneMeta.burnAfterRead, true, 'maxViews=1 must normalize to burn');
+  assert.equal(oneMeta.maxViews, null);
+  const oneRead = await fetchSecret(one.id, one.keyString);
+  assert.equal(oneRead.response.status, 200);
+  assert.equal(
+    (await fetchSecret(one.id, one.keyString)).response.status,
+    404,
+    'a 1-view secret consumes on the first read',
+  );
 
   // Concurrency: with a budget of 2, exactly two of three parallel readers
   // are granted — the counter can never overshoot into an extra view.

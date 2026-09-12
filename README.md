@@ -20,12 +20,12 @@ Source: [github.com/KaidosGH/nveil](https://github.com/KaidosGH/nveil)
 
 - **End-to-end encrypted** — AES-256-GCM entirely in the browser (Web Crypto API, no third-party crypto libraries)
 - **Burn after reading** — the first read with the correct key atomically consumes the secret server-side; concurrent or later readers get nothing, and a confirmation step prevents accidental consumption
-- **View-limit expiry** — destroy a secret after N reads (3 or 5 in the UI, any 1–1000 via the API); expiry and view limit apply whichever comes first. Only a counter is stored — never who viewed, when, or from where
+- **View-limit expiry** — destroy a secret after N reads (3 or 5 in the UI, any 1–1000 via the API; a 1-view limit is burn-after-read); expiry and view limit apply whichever comes first. Only a read counter and a first-view timestamp are stored — no per-view log, never who or from where
 - **Expiring secrets** — 5 minutes to 30 days in the UI (the server accepts any expiry up to 31 days), auto-deleted
 - **Key separation mode** — share the link and the decryption key through different channels
 - **Password protection** — an optional password wraps the decryption key (PBKDF2-SHA256, 600k iterations + AES-GCM); the link alone is not enough, and the password never leaves the creator's browser
 - **QR codes** — share the secret or management link optically; the QR encodes exactly the URL shown on screen
-- **Management links** — delete a secret before it expires, without revealing it
+- **Management links** — delete a secret before it expires and follow its lifecycle from the manage page (destruction mode, views used of N, first view, live expiry countdown), without revealing it
 - **Abuse reporting** — public report dialog and a key-protected operator queue
 - **Access-key gate (managed instances)** — restrict secret creation to holders of revocable access keys, managed in a key-protected UI; reads stay open for recipients
 - **Bilingual UI** (English / German, toggle in the footer)
@@ -213,7 +213,7 @@ days, and check the abuse queue when reports arrive.
 - Never log plaintext or keys. Plaintext exists only in the browser's memory of the two parties.
 - Abuse reports store only the secret ID, an optional reason and timestamps — never reporter IPs, fragments or secret contents. Reports are only visible to holders of `NVEIL_REPORT_ABUSE_KEY`.
 - Optional access-key gate (managed instances): secret creation requires a 256-bit access key; only its SHA-256 hash, a label and lifecycle timestamps are stored — secrets are never linked to keys, and the key travels in an `httpOnly` cookie scripts cannot read.
-- View-limited secrets store only a counter of successful decryptions — never who viewed, when, or from where.
+- View-limited secrets store only a read counter and the first-view timestamp — no per-view log, and never who viewed or from where.
 
 ## AI-assisted development
 
@@ -230,7 +230,7 @@ publicly.
 ```bash
 npm run dev      # dev server (relaxed CSP for hot reload)
 npm run build    # production build
-npm run check    # self-checks: crypto round trip, IP spoof protection, body cap, access-key/management-key verification, markdown sanitizer, legal loader, schema drift
+npm run check    # self-checks: crypto round trip, IP spoof protection, body cap, access-key/management-key verification, deletion countdown, markdown sanitizer, legal loader, schema drift
 ```
 
 The API and browser suites share one orchestrator (`tests/orchestrate.mjs`):

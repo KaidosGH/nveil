@@ -2,8 +2,7 @@
 
 import { useId } from 'react';
 import { EXPIRATION_PRESETS, type ExpirationChoice } from '@/lib/validation';
-import { cn, radioGroupKeyDown } from '@/lib/utils';
-import { Input } from '@/components/ui';
+import { Input, PillRadioGroup } from '@/components/ui';
 import { useI18n } from '@/components/i18n-provider';
 
 // Derived from the preset table so an added/removed preset can't drift.
@@ -28,31 +27,9 @@ export function ExpirationPicker({
   return (
     <div className="space-y-2">
       <span id={labelId} className="text-sm font-medium leading-none">{t.create.expiryLabel}</span>
-      <div
-        role="radiogroup"
-        aria-labelledby={labelId}
-        onKeyDown={(e) => radioGroupKeyDown(e, PRESET_IDS, preset, onPresetChange)}
-        className="flex flex-wrap gap-1.5"
-      >
-        {PRESET_IDS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            role="radio"
-            aria-checked={preset === p}
-            tabIndex={preset === p ? 0 : -1}
-            onClick={() => onPresetChange(p)}
-            className={cn(
-              'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
-              preset === p
-                ? 'border-ring bg-primary font-medium text-primary-foreground'
-                : 'border-input hover:bg-muted',
-            )}
-          >
-            {t.create.presets[p]}
-          </button>
-        ))}
-      </div>
+      <PillRadioGroup ids={PRESET_IDS} value={preset} onChange={onPresetChange} labelledBy={labelId}>
+        {(p) => t.create.presets[p]}
+      </PillRadioGroup>
       {preset === 'custom' && (
         <div className="flex items-center gap-2">
           <Input

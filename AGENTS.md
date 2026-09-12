@@ -33,8 +33,9 @@ This repo is **nveil** — a Next.js App Router + TypeScript + drizzle/Postgres
 zero-knowledge secret-sharing app with a bilingual (en/de) UI. Quick reference:
 
 - `npm run check` runs the assert-based self-checks (crypto, rate-limit/IP,
-  body cap, access-key verification, markdown sanitizer, legal loader, schema
-  drift); `npx tsc --noEmit` for types. Both must pass before a change is done.
+  body cap, access-key verification, deletion countdown, markdown sanitizer,
+  legal loader, schema drift); `npx tsc --noEmit` for types. Both must pass
+  before a change is done.
 - E2E: `npm run test:e2e` (API) and `npm run test:ui` (Playwright), orchestrated
   by `tests/orchestrate.mjs`; the access-key gate suite is
   `tests/access-keys.e2e.mjs` (needs `NVEIL_ACCESS_KEYS=require` +
