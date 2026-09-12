@@ -23,6 +23,9 @@ export const createSecretSchema = z
     keyChecksum: z.string().regex(b64).length(43),
     creatorTokenHash: z.string().regex(b64).length(43),
     burnAfterRead: z.boolean(),
+    // View-limit expiry: destroy after N key-valid reads. Mutually exclusive
+    // with burn — burn IS the 1-read limit; the API maps it there.
+    maxViews: z.number().int().min(1).max(1000).nullish(),
     expiresAt: z.coerce
       .date()
       .refine((d) => d.getTime() > Date.now(), 'expiresAt must be in the future')
@@ -39,6 +42,9 @@ export const createSecretSchema = z
     (s) => !s.hasPassword || (s.wrappedKey !== undefined && s.wrapIv !== undefined && s.wrapSalt !== undefined),
     { message: 'password-protected secrets require wrappedKey, wrapIv and wrapSalt' },
   )
+  .refine((s) => !s.burnAfterRead || !s.maxViews, {
+    message: 'maxViews cannot be combined with burnAfterRead',
+  })
   .refine((s) => s.hasPassword || (s.wrappedKey === undefined && s.wrapIv === undefined && s.wrapSalt === undefined), {
     message: 'wrappedKey/wrapIv/wrapSalt are only valid for password-protected secrets',
   });

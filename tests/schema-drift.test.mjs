@@ -21,6 +21,7 @@ const DDL_TYPE = {
   PgText: 'text',
   PgBoolean: 'boolean',
   PgTimestamp: 'timestamptz',
+  PgInteger: 'integer',
 };
 
 /** Parses the CREATE TABLE blocks of INIT_SQL into { table: { name: def } }. */

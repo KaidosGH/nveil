@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { lt } from 'drizzle-orm';
+import { and, isNotNull, lt, or, sql } from 'drizzle-orm';
 // Relative (not @/ alias) so plain-node self-checks can import this module.
 import { secrets, abuseReports } from '../drizzle/schema.ts';
 
@@ -45,7 +45,15 @@ export async function deleteExpired(): Promise<void> {
   if (now - lastCleanupAt < CLEANUP_THROTTLE_MS) return;
   lastCleanupAt = now;
 
-  await db.delete(secrets).where(lt(secrets.expiresAt, new Date()));
+  // Expired secrets, plus view-limited ones whose budget is spent but whose
+  // row survived (only possible if a crash hit between the granting read and
+  // the row's own deletion — the guard keeps such rows unreadable regardless).
+  await db.delete(secrets).where(
+    or(
+      lt(secrets.expiresAt, new Date()),
+      and(isNotNull(secrets.maxViews), sql`${secrets.viewCount} >= ${secrets.maxViews}`),
+    ),
+  );
   // Resolved abuse reports are purged after the retention window; unresolved
   // ones are kept until the operator handles them.
   const cutoff = new Date(now - ABUSE_REPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000);

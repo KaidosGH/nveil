@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label, PassphraseInput, Switch, Textarea } from '@/components/ui';
+import { Label, PassphraseInput, Textarea } from '@/components/ui';
 import { ExpirationPicker } from '@/components/expiration-picker';
 import { SecretUrlDisplay } from '@/components/secret-url-display';
 import { useI18n } from '@/components/i18n-provider';
@@ -24,11 +24,14 @@ import { cn, radioGroupKeyDown } from '@/lib/utils';
 
 type FormValues = {
   content: string;
-  burnAfterRead: boolean;
 };
 
 /** How the recipient obtains the decryption key. */
 type KeyDelivery = 'link' | 'separate' | 'password';
+
+/** When the secret dies: on first read, after N views, or only on expiry. */
+type Destruction = 'burn' | 'v3' | 'v5' | 'never';
+const DESTRUCTION_MODES: Destruction[] = ['burn', 'v3', 'v5', 'never'];
 
 type Result = {
   secretUrl: string;
@@ -42,9 +45,13 @@ const KEY_DELIVERY: KeyDelivery[] = ['link', 'separate', 'password'];
 export function CreateSecretForm() {
   const { t } = useI18n();
   const keyDeliveryLabelId = useId();
+  const destructionLabelId = useId();
   const [preset, setPreset] = useState<ExpirationChoice>('24h');
   const [customMinutes, setCustomMinutes] = useState(60);
   const [keyDelivery, setKeyDelivery] = useState<KeyDelivery>('link');
+  // 'burn' keeps the atomic burn-after-read path; v3/v5 map to maxViews;
+  // 'never' relies on the expiry alone.
+  const [destruction, setDestruction] = useState<Destruction>('burn');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -72,14 +79,13 @@ export function CreateSecretForm() {
           .refine((s) => new TextEncoder().encode(s).byteLength <= MAX_CONTENT_BYTES, {
             message: t.create.errorTooLarge,
           }),
-        burnAfterRead: z.boolean(),
       }),
     [t],
   );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { content: '', burnAfterRead: true },
+    defaultValues: { content: '' },
   });
 
   // Which access key is active in this browser, if any: surfaced in Advanced
@@ -140,6 +146,11 @@ export function CreateSecretForm() {
       // link stays keyless. The other modes send the raw checksum fields.
       const passwordEnvelope = keyDelivery === 'password' ? await wrapKeyWithPassword(keyString, password) : {};
 
+      // 'burn' uses the server's atomic burn path; view limits map to
+      // maxViews (1 view ≡ burn, so the UI never sends that combination).
+      const burnAfterRead = destruction === 'burn';
+      const maxViews = destruction === 'v3' ? 3 : destruction === 'v5' ? 5 : null;
+
       const response = await fetch('/api/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,7 +159,8 @@ export function CreateSecretForm() {
           iv,
           keyChecksum: await keyChecksum(keyString),
           creatorTokenHash: await tokenHash(token),
-          burnAfterRead: values.burnAfterRead,
+          burnAfterRead,
+          maxViews,
           expiresAt: new Date(Date.now() + minutes * 60_000).toISOString(),
           ...passwordEnvelope,
         }),
@@ -290,16 +302,42 @@ export function CreateSecretForm() {
             onCustomMinutesChange={setCustomMinutes}
           />
 
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="burn">{t.create.burnLabel}</Label>
-              <p className="text-xs text-muted-foreground">{t.create.burnDesc}</p>
+          <div className="space-y-2">
+            <span id={destructionLabelId} className="text-sm font-medium leading-none">
+              {t.create.destructionLabel}
+            </span>
+            <p className="text-xs text-muted-foreground">{t.create.destructionDesc}</p>
+            <div
+              role="radiogroup"
+              aria-labelledby={destructionLabelId}
+              onKeyDown={(e) => radioGroupKeyDown(e, DESTRUCTION_MODES, destruction, setDestruction)}
+              className="flex flex-wrap gap-1.5"
+            >
+              {DESTRUCTION_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={destruction === mode}
+                  tabIndex={destruction === mode ? 0 : -1}
+                  onClick={() => setDestruction(mode)}
+                  className={cn(
+                    'h-10 sm:h-8 rounded-md border px-3 text-sm transition-[color,background-color,border-color,transform] active:scale-[0.97]',
+                    destruction === mode
+                      ? 'border-ring bg-primary font-medium text-primary-foreground'
+                      : 'border-input hover:bg-muted',
+                  )}
+                >
+                  {mode === 'burn'
+                    ? t.create.destructionBurn
+                    : mode === 'v3'
+                      ? t.create.destructionViews3
+                      : mode === 'v5'
+                        ? t.create.destructionViews5
+                        : t.create.destructionNever}
+                </button>
+              ))}
             </div>
-            <Switch
-              id="burn"
-              checked={form.watch('burnAfterRead')}
-              onCheckedChange={(checked) => form.setValue('burnAfterRead', checked)}
-            />
           </div>
 
           <details>
