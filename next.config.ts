@@ -17,7 +17,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // Standalone output exists only for the Docker image, which ships the
+  // self-contained server.js (see Dockerfile). Everywhere else — `next start`
+  // for local runs, the test orchestrator and CI — the flag only earns a
+  // startup warning, so the image build opts in via NVEIL_STANDALONE=1.
+  ...(process.env.NVEIL_STANDALONE === '1' ? { output: 'standalone' as const } : {}),
   // No version disclosure (Next defaults this to true).
   poweredByHeader: false,
   async headers() {
