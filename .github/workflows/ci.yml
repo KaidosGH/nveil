@@ -44,7 +44,7 @@ jobs:
       # scan the full pushed history. Same version as the hook; findings exit
       # non-zero. The repo's .betterleaksignore / inline betterleaks:allow
       # comments are picked up automatically.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: 'stable'
       - run: go install github.com/betterleaks/betterleaks@v1.8.1
